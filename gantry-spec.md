@@ -207,7 +207,7 @@ gantry status                # Show all projects + their status
 
 ### Objectives
 - Implement process lifecycle (start/stop/restart)
-- Add logging and process monitoring
+- Provide access to service logs via `docker compose logs`
 - Handle Docker Compose services
 - Create service health checks
 
@@ -219,7 +219,6 @@ gantry status                # Show all projects + their status
 **Features:**
 - Start/stop/restart projects (Docker Compose)
 - Monitor process status using `psutil`
-- Log output to `~/.gantry/projects/<hostname>/logs/`
 - Implement health checks for services
 
 **Methods:**
@@ -227,39 +226,16 @@ gantry status                # Show all projects + their status
 - `stop_project(hostname)` → graceful shutdown with timeout
 - `restart_project(hostname)` → stop + start
 - `get_status(hostname)` → returns (running, stopped, error)
-- `get_logs(hostname, service=None, tail=100)` → returns last N log lines
+- `get_logs(hostname, service=None, follow=False)` → streams logs from `docker compose logs`
 - `health_check(hostname)` → HTTP GET to localhost:port
 
 **Implementation Details:**
 - For Docker Compose: `subprocess.Popen(['docker-compose', '-f', compose_path, 'up', '-d'])`
-- Capture stdout/stderr → log files
+- For logs: `subprocess.Popen(['docker', 'compose', 'logs', '--follow', service])`
 - Store PIDs in `~/.gantry/projects/<hostname>/state.json`
 - Implement timeout logic (e.g., wait 30s for graceful shutdown before kill)
 
-#### 2.2 Logging System
-**File**: `gantry/logger.py`
-
-**Features:**
-- Per-project logs in `~/.gantry/projects/<hostname>/logs/`
-- Separate logs for each service
-- Rotation to prevent disk bloat (max 100MB per log)
-- Timestamps, log levels (INFO, ERROR, WARN)
-
-**Log File Structure:**
-```
-~/.gantry/projects/proj1/
-  logs/
-    app.log       # stdout/stderr from app service
-    db.log        # stdout/stderr from db service
-    gantry.log    # gantry operations for this project
-```
-
-**Methods:**
-- `get_log_path(hostname, service)` → returns absolute path
-- `stream_logs(hostname, follow=True)` → tail -f style output to console
-- `rotate_logs(hostname)` → archive old logs
-
-#### 2.3 Service Orchestration
+#### 2.2 Service Orchestration
 **File**: `gantry/orchestrator.py`
 
 **Features:**
@@ -282,28 +258,23 @@ gantry status                # Show all projects + their status
   - [ ] `stop_project()` with graceful shutdown timeout
   - [ ] `restart_project()`
   - [ ] `get_status()` via PID validation
+  - [ ] `get_logs()` via `docker compose logs`
   - [ ] Health check via HTTP GET + retry logic
   - [ ] Error handling (service already running, port in use, etc.)
 
 #### 2.2
-- [ ] Implement `logger.py`:
-  - [ ] Log file creation and management
-  - [ ] Log rotation logic
-  - [ ] Readable timestamps and formatting
-
-#### 2.3
 - [ ] Implement `orchestrator.py`:
   - [ ] `start_all()` and `stop_all()`
   - [ ] Dependency ordering for services
   - [ ] Status aggregation
 
-#### 2.4
+#### 2.3
 - [ ] Extend `registry.py`:
   - [ ] Add `auto_start` boolean field to project metadata
   - [ ] Add `last_status_change` timestamp
   - [ ] Persist PID on start
 
-#### 2.5
+#### 2.4
 - [ ] Extend `cli.py`:
   - [ ] `start <hostname>` command
   - [ ] `stop <hostname>` command
@@ -313,19 +284,18 @@ gantry status                # Show all projects + their status
   - [ ] `logs <hostname> [--follow] [--service <name>]` command
   - [ ] `health-check <hostname>` command
 
-#### 2.6
+#### 2.5
 - [ ] Update `process_manager.py`:
   - [ ] Add `port` parameter to start command (for reverse proxy)
   - [ ] Validate port is in allowed range
 
-#### 2.7
+#### 2.6
 - [ ] Tests:
   - [ ] Mock subprocess calls
   - [ ] Test start/stop lifecycle
-  - [ ] Test log file creation
   - [ ] Test health check logic
 
-#### 2.8
+#### 2.7
 - [ ] Documentation:
   - [ ] Examples: `gantry start proj1`, `gantry logs proj1 --follow`
 
@@ -1080,7 +1050,6 @@ gantry/
     port_allocator.py
     process_manager.py
     orchestrator.py
-    logger.py
     dns_manager.py
     caddy_manager.py
     cert_manager.py
@@ -1249,6 +1218,7 @@ gantry = "gantry.cli:app"
 - IDE integrations (VS Code extension, JetBrains plugin)
 - Ansible-like playbooks for complex setup workflows
 - S3 backup integration for disaster recovery
+- **Log Management for Native Processes**: A system to capture, view, and rotate logs for services that don't run in Docker.
 
 ---
 
