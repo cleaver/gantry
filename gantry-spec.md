@@ -10,7 +10,7 @@
 - SSL/TLS certificate management with system integration
 - Multi-project orchestration (run multiple apps simultaneously)
 - Port conflict prevention and management
-- Web-based and TUI management console
+- TUI management console
 
 **Technology Stack:**
 - **Language**: Python 3.12+
@@ -69,7 +69,7 @@ System Integration
   - `hostname` (e.g., `proj1`)
   - `path` (absolute path to project directory)
   - `port` (allocated HTTP port)
-  - `services` (list of docker-compose services or native executables)
+  - `services` (list of docker-compose services)
   - `docker_compose` (boolean: uses docker-compose?)
   - `working_directory` (where to run commands from)
   - `environment_vars` (project-specific env vars)
@@ -142,8 +142,6 @@ gantry status                # Show all projects + their status
 
 **Auto-detect:**
 - Presence of `docker-compose.yml` → assume Docker-based
-- Presence of `package.json` → Node.js project
-- Presence of `mix.exs` → Elixir/Phoenix project
 - Presence of `Dockerfile` → containerized
 
 ### Phase 1 Checklist
@@ -186,8 +184,7 @@ gantry status                # Show all projects + their status
 #### 1.5
 - [ ] Implement `detectors.py`:
   - [ ] Docker Compose detection
-  - [ ] Framework detection (Node, Elixir, Python, etc.)
-
+  
 #### 1.6
 - [ ] Write tests:
   - [ ] Registry CRUD operations
@@ -211,7 +208,7 @@ gantry status                # Show all projects + their status
 ### Objectives
 - Implement process lifecycle (start/stop/restart)
 - Add logging and process monitoring
-- Handle both Docker Compose and native services
+- Handle Docker Compose services
 - Create service health checks
 
 ### Technical Components
@@ -220,7 +217,7 @@ gantry status                # Show all projects + their status
 **File**: `gantry/process_manager.py`
 
 **Features:**
-- Start/stop/restart projects (Docker Compose or native executables)
+- Start/stop/restart projects (Docker Compose)
 - Monitor process status using `psutil`
 - Log output to `~/.gantry/projects/<hostname>/logs/`
 - Implement health checks for services
@@ -235,7 +232,6 @@ gantry status                # Show all projects + their status
 
 **Implementation Details:**
 - For Docker Compose: `subprocess.Popen(['docker-compose', '-f', compose_path, 'up', '-d'])`
-- For native: `subprocess.Popen(['mix', 'phx.server'], cwd=project_path)`
 - Capture stdout/stderr → log files
 - Store PIDs in `~/.gantry/projects/<hostname>/state.json`
 - Implement timeout logic (e.g., wait 30s for graceful shutdown before kill)
@@ -282,7 +278,7 @@ gantry status                # Show all projects + their status
 
 #### 2.1
 - [ ] Implement `process_manager.py`:
-  - [ ] `start_project()` with Docker Compose and native support
+  - [ ] `start_project()` with Docker Compose support
   - [ ] `stop_project()` with graceful shutdown timeout
   - [ ] `restart_project()`
   - [ ] `get_status()` via PID validation
@@ -657,166 +653,7 @@ adminer.proj2.test {
 
 ---
 
-## Phase 5: Management Console (Web UI)
-
-### Objectives
-- Build web dashboard for project management
-- Implement start/stop/restart via web
-- Show real-time logs
-- Display health status
-- Provide simple, focused interface
-
-### Technical Components
-
-#### 5.1 Web Framework Setup
-**Framework**: FastAPI + HTML/CSS (lightweight, no heavy frontend build)
-
-**File Structure:**
-```
-gantry/
-  web/
-    __init__.py
-    app.py              # FastAPI app
-    routes.py           # API endpoints
-    templates/
-      index.html
-      project.html
-      logs.html
-    static/
-      style.css
-      script.js
-```
-
-#### 5.2 FastAPI Application
-**File**: `gantry/web/app.py`
-
-**Endpoints:**
-- `GET /` → dashboard (list all projects)
-- `GET /api/projects` → JSON list of projects + status
-- `GET /api/projects/<hostname>` → project details
-- `POST /api/projects/<hostname>/start` → start project
-- `POST /api/projects/<hostname>/stop` → stop project
-- `POST /api/projects/<hostname>/restart` → restart
-- `GET /api/projects/<hostname>/logs` → tail logs (with streaming)
-- `GET /api/projects/<hostname>/health` → health check status
-- `GET /api/status` → all projects status summary
-- `WebSocket /api/logs/<hostname>` → real-time log streaming
-
-**Implementation Notes:**
-- Run FastAPI server on fixed port (e.g., 9999)
-- Use CORS if needed
-- Implement WebSocket for live logs
-- Use `psutil` for process monitoring
-- Implement auth (optional: simple token in `~/.gantry/token`)
-
-#### 5.3 Frontend Dashboard
-**File**: `gantry/web/templates/index.html`
-
-**Features:**
-- Card layout for each project
-- Color-coded status (green=running, red=stopped, yellow=error)
-- Quick-action buttons (Start, Stop, Restart, View Logs)
-- Real-time status updates (polling every 5s or WebSocket)
-- Filter/search projects
-- Show URLs for each project (proj1.test, db.proj1.test, etc.)
-
-**Basic HTML structure:**
-```html
-<div class="projects">
-  <div class="project-card" id="proj1">
-    <h3>proj1</h3>
-    <p class="status running">Running</p>
-    <p class="urls">
-      <a href="http://proj1.test">proj1.test</a>
-      <a href="http://db.proj1.test">db.proj1.test</a>
-      <a href="http://mail.proj1.test">mail.proj1.test</a>
-    </p>
-    <div class="actions">
-      <button onclick="startProject('proj1')">Start</button>
-      <button onclick="stopProject('proj1')">Stop</button>
-      <button onclick="restartProject('proj1')">Restart</button>
-      <button onclick="viewLogs('proj1')">Logs</button>
-    </div>
-  </div>
-  <!-- More project cards... -->
-</div>
-```
-
-#### 5.4 Logs Viewer
-**File**: `gantry/web/templates/logs.html`
-
-**Features:**
-- Real-time tail of logs (WebSocket)
-- Scrollable terminal-like view
-- Service selector dropdown
-- Download log file option
-- Auto-scroll toggle
-
-### Phase 5 Checklist
-
-#### 5.1
-- [ ] Setup FastAPI project:
-  - [ ] Add FastAPI, uvicorn to dependencies
-  - [ ] Create `web/app.py` with FastAPI instance
-  - [ ] Create `web/routes.py` with API endpoints
-
-#### 5.2
-- [ ] Implement API endpoints in `routes.py`:
-  - [ ] `GET /` (serve dashboard HTML)
-  - [ ] `GET /api/projects` (list projects + status)
-  - [ ] `GET /api/projects/<hostname>` (project details)
-  - [ ] `POST /api/projects/<hostname>/start`
-  - [ ] `POST /api/projects/<hostname>/stop`
-  - [ ] `POST /api/projects/<hostname>/restart`
-  - [ ] `GET /api/projects/<hostname>/logs` (tail logs)
-  - [ ] `GET /api/status` (quick overview)
-  - [ ] `WebSocket /ws/logs/<hostname>` (streaming logs)
-
-#### 5.3
-- [ ] Create frontend templates:
-  - [ ] `templates/index.html` (dashboard)
-  - [ ] Responsive card layout
-  - [ ] Service URL display
-  - [ ] Action buttons
-
-#### 5.4
-- [ ] Create static assets:
-  - [ ] `static/style.css` (styling, responsive design)
-  - [ ] `static/script.js` (AJAX calls, status polling, WebSocket)
-  - [ ] Minimal JavaScript (no heavy frameworks yet)
-
-#### 5.5
-- [ ] Implement WebSocket for log streaming:
-  - [ ] Real-time tail of log files
-  - [ ] Connection handling and reconnection
-
-#### 5.6
-- [ ] Extend `cli.py`:
-  - [ ] `web-console` or `console` command to start server
-  - [ ] Print URL and access instructions
-  - [ ] Graceful shutdown on Ctrl+C
-
-#### 5.7
-- [ ] Security:
-  - [ ] Optional token-based auth in headers
-  - [ ] CORS configuration
-  - [ ] Input validation (hostname, service names)
-
-#### 5.8
-- [ ] Tests:
-  - [ ] Mock API endpoints
-  - [ ] Test JSON serialization
-  - [ ] Test log streaming
-
-#### 5.9
-- [ ] Documentation:
-  - [ ] Screenshot of dashboard
-  - [ ] Usage: `gantry console`
-  - [ ] Default port and URL
-
----
-
-## Phase 6: TUI (Text User Interface)
+## Phase 5: TUI (Text User Interface)
 
 ### Objectives
 - Build interactive terminal interface for advanced users
@@ -826,7 +663,7 @@ gantry/
 
 ### Technical Components
 
-#### 6.1 Textual Framework Setup
+#### 5.1 Textual Framework Setup
 **Framework**: Textual (Python TUI framework by Will McGugan)
 
 **File**: `gantry/tui/app.py`
@@ -852,7 +689,7 @@ gantry/
 └────────────────────────────────────────────────────────────────┘
 ```
 
-#### 6.2 Textual Widgets
+#### 5.2 Textual Widgets
 **Components:**
 - Project list (interactive table)
 - Status display (color-coded)
@@ -870,50 +707,50 @@ gantry/
 - `q` → Quit
 - `?` → Help/keybindings
 
-### Phase 6 Checklist
+### Phase 5 Checklist
 
-#### 6.1
+#### 5.1
 - [ ] Add Textual to dependencies
 
-#### 6.2
+#### 5.2
 - [ ] Create TUI app structure:
   - [ ] `tui/app.py` (main Textual application)
   - [ ] `tui/widgets.py` (custom widgets)
   - [ ] `tui/screens.py` (different screens/views)
 
-#### 6.3
+#### 5.3
 - [ ] Implement main screen:
   - [ ] Project table with columns: Name, Status, Port, Actions
   - [ ] Color-coded status indicators
   - [ ] Selection/focus handling
   - [ ] Real-time status updates
 
-#### 6.4
+#### 5.4
 - [ ] Implement log viewer:
   - [ ] Scrollable log display
   - [ ] Service selector
   - [ ] Live-tail functionality
   - [ ] Clear logs button
 
-#### 6.5
+#### 5.5
 - [ ] Implement action handlers:
   - [ ] Start/Stop/Restart buttons
   - [ ] Keyboard shortcuts
   - [ ] Confirmation dialogs
   - [ ] Loading states
 
-#### 6.6
+#### 5.6
 - [ ] Extend `cli.py`:
   - [ ] `tui` command to launch TUI console
   - [ ] Alternative to web console
 
-#### 6.7
+#### 5.7
 - [ ] Tests:
   - [ ] Mock Textual widgets
   - [ ] Test key bindings
   - [ ] Test status updates
 
-#### 6.8
+#### 5.8
 - [ ] Documentation:
   - [ ] Screenshot of TUI
   - [ ] Keybindings reference
@@ -921,7 +758,7 @@ gantry/
 
 ---
 
-## Phase 7: Docker Service Integration
+## Phase 6: Docker Service Integration
 
 ### Objectives
 - Simplify database and third-party service setup
@@ -931,7 +768,7 @@ gantry/
 
 ### Technical Components
 
-#### 7.1 Docker Service Manager
+#### 6.1 Docker Service Manager
 **File**: `gantry/docker_service_manager.py`
 
 **Features:**
@@ -991,7 +828,7 @@ networks:
 - `health_check(service_name)` → verifies service is ready
 - `get_service_port(service_name)` → returns exposed port
 
-#### 7.2 Service Configuration
+#### 6.2 Service Configuration
 **File**: `gantry/services.py`
 
 **Per-project service definitions:**
@@ -1021,47 +858,47 @@ networks:
 }
 ```
 
-### Phase 7 Checklist
+### Phase 6 Checklist
 
-#### 7.1
+#### 6.1
 - [ ] Implement `docker_service_manager.py`:
   - [ ] Docker network creation
   - [ ] Service lifecycle (start/stop)
   - [ ] Health checks for containers
   - [ ] Port mapping and exposure
 
-#### 7.2
+#### 6.2
 - [ ] Create service templates:
   - [ ] `services/postgres.yml` template
   - [ ] `services/redis.yml` template
   - [ ] `services/mailhog.yml` template
   - [ ] `services/adminer.yml` template
 
-#### 7.3
+#### 6.3
 - [ ] Extend project registration:
   - [ ] Prompt for services during `register`
   - [ ] Auto-detect services from docker-compose.yml
   - [ ] Store service config in project metadata
 
-#### 7.4
+#### 6.4
 - [ ] Extend `orchestrator.py`:
   - [ ] Start services as part of project startup
   - [ ] Stop services on project shutdown
   - [ ] Health check for services
 
-#### 7.5
+#### 6.5
 - [ ] Extend `cli.py`:
   - [ ] `services <hostname>` → show enabled services
   - [ ] `service-start <hostname> <service>`
   - [ ] `service-stop <hostname> <service>`
 
-#### 7.6
+#### 6.6
 - [ ] Tests:
   - [ ] Mock Docker CLI calls
   - [ ] Test service startup/shutdown
   - [ ] Test health checks
 
-#### 7.7
+#### 6.7
 - [ ] Documentation:
   - [ ] Supported services and versions
   - [ ] Configuration examples
@@ -1069,7 +906,7 @@ networks:
 
 ---
 
-## Phase 8: Advanced Features & Polish
+## Phase 7: Advanced Features & Polish
 
 ### Objectives
 - Add convenience features
@@ -1079,82 +916,82 @@ networks:
 
 ### Features to Implement
 
-#### 8.1 Environment Variable Management
+#### 7.1 Environment Variable Management
 - Per-project `.env` files stored in `~/.gantry/projects/<hostname>/`
 - CLI to set/get environment variables
 - Auto-inject on service start
 
-#### 8.2 Project Templates
+#### 7.2 Project Templates
 - Quick-start templates for common stacks
 - `gantry new <template> <hostname>` → scaffold project
 - Templates: Phoenix, Rails, Next.js, FastAPI, etc.
 
-#### 8.3 Backup & Recovery
+#### 7.3 Backup & Recovery
 - Snapshot project state (registry, config, certs)
 - Export/import projects
 - Disaster recovery
 
-#### 8.4 Analytics & Monitoring
+#### 7.4 Analytics & Monitoring
 - Track uptime, restart frequency
 - Log analysis (errors, warnings)
 - Summary reports
 
-#### 8.5 Integration Hooks
+#### 7.5 Integration Hooks
 - Pre-start/post-start scripts
 - Pre-stop/post-stop scripts
 - Custom health checks
 
-#### 8.6 Multi-User Support (Advanced)
+#### 7.6 Multi-User Support (Advanced)
 - Share dev environments across team
 - User-specific port ranges
 - Centralized service repository
 
-### Phase 8 Checklist
+### Phase 7 Checklist
 
-#### 8.1
+#### 7.1
 - [ ] Environment variable management:
   - [ ] `gantry env set <hostname> KEY VALUE`
   - [ ] `gantry env get <hostname> KEY`
   - [ ] `gantry env list <hostname>`
   - [ ] Auto-load on project start
 
-#### 8.2
+#### 7.2
 - [ ] Project templates:
   - [ ] Template registry in `~/.gantry/templates/`
   - [ ] `gantry new <template> <hostname>`
   - [ ] Built-in templates for popular stacks
 
-#### 8.3
+#### 7.3
 - [ ] Backup & recovery:
   - [ ] `gantry backup` → export all projects
   - [ ] `gantry restore <backup_file>`
   - [ ] Compress and encrypt backups
 
-#### 8.4
+#### 7.4
 - [ ] Analytics:
   - [ ] `gantry stats <hostname>` → uptime, restarts
   - [ ] `gantry report` → summary of all projects
 
-#### 8.5
+#### 7.5
 - [ ] Hooks:
   - [ ] `pre_start`, `post_start`, `pre_stop`, `post_stop` scripts
   - [ ] Store in project config
   - [ ] Execute with project context
 
-#### 8.6
+#### 7.6
 - [ ] Documentation:
   - [ ] Full user guide
   - [ ] API reference
   - [ ] Troubleshooting section
   - [ ] Video tutorials (optional)
 
-#### 8.7
+#### 7.7
 - [ ] Testing:
   - [ ] Integration tests (full workflow)
   - [ ] End-to-end tests
   - [ ] Performance tests
 
-#### 8.8
+#### 7.8
 - [ ] Packaging & Distribution:
   - [ ] PyPI publication
   - [ ] Installation via `pip install gantry` or `uv tool install gantry`
@@ -1168,7 +1005,6 @@ networks:
 ### Performance
 - CLI commands respond in <500ms
 - Project startup logs visible within 2s
-- Web dashboard loads in <1s
 - TUI updates every 500ms
 - No memory leaks in long-running processes
 
@@ -1180,7 +1016,6 @@ networks:
 
 ### Security
 - No credentials stored in plaintext
-- Optional auth token for web console
 - Certificate validation
 - Input sanitization for all CLI arguments
 
@@ -1252,12 +1087,6 @@ gantry/
     routing_config.py
     detectors.py
     docker_service_manager.py
-    web/
-      __init__.py
-      app.py
-      routes.py
-      templates/
-      static/
     tui/
       __init__.py
       app.py
@@ -1286,8 +1115,6 @@ dependencies = [
     "typer>=0.9",
     "rich>=13.0",
     "pydantic>=2.0",
-    "fastapi>=0.100",
-    "uvicorn>=0.20",
     "textual>=0.30",
     "psutil>=5.9",
 ]
@@ -1315,11 +1142,10 @@ gantry = "gantry.cli:app"
 | **2** | 1-2 weeks | Process lifecycle management, logging |
 | **3** | 1 week | DNS configuration, .test domain resolution |
 | **4** | 2 weeks | Caddy reverse proxy, certificate management |
-| **5** | 1-2 weeks | Web console dashboard |
-| **6** | 1 week | TUI console (alternative to web) |
-| **7** | 1-2 weeks | Docker service integration |
-| **8** | 2-3 weeks | Polish, docs, distribution, CI/CD |
-| **Total** | **11-16 weeks** | Full feature set, production-ready |
+| **5** | 1 week | TUI console (alternative to web) |
+| **6** | 1-2 weeks | Docker service integration |
+| **7** | 2-3 weeks | Polish, docs, distribution, CI/CD |
+| **Total** | **9-13 weeks** | Full feature set, production-ready |
 
 ---
 
@@ -1389,7 +1215,6 @@ gantry = "gantry.cli:app"
 
 7. **API_REFERENCE.md** (for developers)
    - Core module APIs
-   - Web API endpoints
    - Data structures
 
 ---
@@ -1402,7 +1227,6 @@ gantry = "gantry.cli:app"
 ✅ DNS resolution works automatically
 ✅ Self-signed certificate trusted by system (no warnings)
 ✅ Multiple projects can run simultaneously
-✅ Web dashboard shows all projects and their status
 ✅ Logs accessible from CLI, web, and TUI
 ✅ No port conflicts
 ✅ Graceful error handling
@@ -1425,3 +1249,162 @@ gantry = "gantry.cli:app"
 - IDE integrations (VS Code extension, JetBrains plugin)
 - Ansible-like playbooks for complex setup workflows
 - S3 backup integration for disaster recovery
+
+---
+
+### Web Console
+
+#### Objectives
+- Build web dashboard for project management
+- Implement start/stop/restart via web
+- Show real-time logs
+- Display health status
+- Provide simple, focused interface
+
+#### Technical Components
+
+##### xxx.1 Web Framework Setup
+**Framework**: FastAPI + HTML/CSS (lightweight, no heavy frontend build)
+
+**File Structure:**
+```
+gantry/
+  web/
+    __init__.py
+    app.py              # FastAPI app
+    routes.py           # API endpoints
+    templates/
+      index.html
+      project.html
+      logs.html
+    static/
+      style.css
+      script.js
+```
+
+##### xxx.2 FastAPI Application
+**File**: `gantry/web/app.py`
+
+**Endpoints:**
+- `GET /` → dashboard (list all projects)
+- `GET /api/projects` → JSON list of projects + status
+- `GET /api/projects/<hostname>` → project details
+- `POST /api/projects/<hostname>/start` → start project
+- `POST /api/projects/<hostname>/stop` → stop project
+- `POST /api/projects/<hostname>/restart` → restart
+- `GET /api/projects/<hostname>/logs` → tail logs (with streaming)
+- `GET /api/projects/<hostname>/health` → health check status
+- `GET /api/status` → all projects status summary
+- `WebSocket /api/logs/<hostname>` → real-time log streaming
+
+**Implementation Notes:**
+- Run FastAPI server on fixed port (e.g., 9999)
+- Use CORS if needed
+- Implement WebSocket for live logs
+- Use `psutil` for process monitoring
+- Implement auth (optional: simple token in `~/.gantry/token`)
+
+##### xxx.3 Frontend Dashboard
+**File**: `gantry/web/templates/index.html`
+
+**Features:**
+- Card layout for each project
+- Color-coded status (green=running, red=stopped, yellow=error)
+- Quick-action buttons (Start, Stop, Restart, View Logs)
+- Real-time status updates (polling every 5s or WebSocket)
+- Filter/search projects
+- Show URLs for each project (proj1.test, db.proj1.test, etc.)
+
+**Basic HTML structure:**
+```html
+<div class="projects">
+  <div class="project-card" id="proj1">
+    <h3>proj1</h3>
+    <p class="status running">Running</p>
+    <p class="urls">
+      <a href="http://proj1.test">proj1.test</a>
+      <a href="http://db.proj1.test">db.proj1.test</a>
+      <a href="http://mail.proj1.test">mail.proj1.test</a>
+    </p>
+    <div class="actions">
+      <button onclick="startProject('proj1')">Start</button>
+      <button onclick="stopProject('proj1')">Stop</button>
+      <button onclick="restartProject('proj1')">Restart</button>
+      <button onclick="viewLogs('proj1')">Logs</button>
+    </div>
+  </div>
+  <!-- More project cards... -->
+</div>
+```
+
+##### xxx.4 Logs Viewer
+**File**: `gantry/web/templates/logs.html`
+
+**Features:**
+- Real-time tail of logs (WebSocket)
+- Scrollable terminal-like view
+- Service selector dropdown
+- Download log file option
+- Auto-scroll toggle
+
+### xxx Checklist
+
+#### xxx.1
+- [ ] Setup FastAPI project:
+  - [ ] Add FastAPI, uvicorn to dependencies
+  - [ ] Create `web/app.py` with FastAPI instance
+  - [ ] Create `web/routes.py` with API endpoints
+
+#### xxx.2
+- [ ] Implement API endpoints in `routes.py`:
+  - [ ] `GET /` (serve dashboard HTML)
+  - [ ] `GET /api/projects` (list projects + status)
+  - [ ] `GET /api/projects/<hostname>` (project details)
+  - [ ] `POST /api/projects/<hostname>/start`
+  - [ ] `POST /api/projects/<hostname>/stop`
+  - [ ] `POST /api/projects/<hostname>/restart`
+  - [ ] `GET /api/projects/<hostname>/logs` (tail logs)
+  - [ ] `GET /api/status` (quick overview)
+  - [ ] `WebSocket /ws/logs/<hostname>` (streaming logs)
+
+#### xxx.3
+- [ ] Create frontend templates:
+  - [ ] `templates/index.html` (dashboard)
+  - [ ] Responsive card layout
+  - [ ] Service URL display
+  - [ ] Action buttons
+
+#### xxx.4
+- [ ] Create static assets:
+  - [ ] `static/style.css` (styling, responsive design)
+  - [ ] `static/script.js` (AJAX calls, status polling, WebSocket)
+  - [ ] Minimal JavaScript (no heavy frameworks yet)
+
+#### xxx.5
+- [ ] Implement WebSocket for log streaming:
+  - [ ] Real-time tail of log files
+  - [ ] Connection handling and reconnection
+
+#### xxx.6
+- [ ] Extend `cli.py`:
+  - [ ] `web-console` or `console` command to start server
+  - [ ] Print URL and access instructions
+  - [ ] Graceful shutdown on Ctrl+C
+
+#### xxx.7
+- [ ] Security:
+  - [ ] Optional token-based auth in headers
+  - [ ] CORS configuration
+  - [ ] Input validation (hostname, service names)
+
+#### xxx.8
+- [ ] Tests:
+  - [ ] Mock API endpoints
+  - [ ] Test JSON serialization
+  - [ ] Test log streaming
+
+#### xxx.9
+- [ ] Documentation:
+  - [ ] Screenshot of dashboard
+  - [ ] Usage: `gantry console`
+  - [ ] Default port and URL
