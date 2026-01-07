@@ -263,13 +263,13 @@ gantry ports --all           # Show ports for all projects
   ```
 
 #### 1.2
-- [ ] Implement `registry.py`:
-  - [ ] JSON load/save with atomic writes
-  - [ ] Project data validation
-  - [ ] CRUD operations for projects
-  - [ ] Status tracking
-  - [ ] `update_project_metadata()` method with atomic updates
-  - [ ] `last_updated` timestamp tracking
+- [x] Implement `registry.py`:
+  - [x] JSON load/save with atomic writes
+  - [x] Project data validation
+  - [x] CRUD operations for projects
+  - [x] Status tracking
+  - [x] `update_project_metadata()` method with atomic updates
+  - [x] `last_updated` timestamp tracking
 
 #### 1.3
 - [ ] Implement `port_allocator.py`:
