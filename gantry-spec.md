@@ -249,7 +249,7 @@ gantry ports --all           # Show ports for all projects
 ### Phase 1 Checklist
 
 #### 1.1
-- [ ] Create project structure:
+- [x] Create project structure:
   ```
   gantry/
     __init__.py
