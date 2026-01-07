@@ -13,13 +13,13 @@
 - TUI management console
 
 **Technology Stack:**
-- **Language**: Python 3.12+
+- **Language**: Python 3.10+
 - **Package Manager**: `uv` (fast, lockfile-based)
 - **CLI**: Typer for command parsing
 - **TUI**: Textual for terminal UI
 - **Reverse Proxy**: Caddy (lightweight, automatic HTTPS)
 - **Certificates:** mkcert (Wrapper)  
-- **DNS**: systemd-resolved or dnsmasq integration (Linux-first)
+- **DNS**: systemd-resolved and dnsmasq integration (Linux-first)
 - **Data Storage**: JSON/YAML (simple, version-controllable)
 - **Process Management**: psutil for monitoring, subprocess for launching
 
@@ -33,7 +33,7 @@ User (CLI/TUI)
 Gantry Core (registry, lifecycle management)
     ↓
     ├─→ Process Manager (start/stop services)
-    ├─→ DNS Manager (configure systemd-resolved/.test domains)
+    ├─→ DNS Manager (configure DNS for .test domains)
     ├─→ Caddy Manager (reverse proxy config generation)
     ├─→ Certificate Manager (mkcert integration, system CA trust)
     ├─→ Project Registry (JSON storage)
@@ -44,7 +44,7 @@ System Integration
     ├─→ Caddy (reverse proxy)
     ├─→ Docker (optional services: postgres, mailhog, redis)
     ├─→ System certificate store (/usr/local/share/ca-certificates/)
-    └─→ /etc/dnsmasq.d/ or systemd DNS config
+    └─→ /etc/dnsmasq.d/ DNS config
 ```
 
 ---
@@ -469,25 +469,10 @@ gantry ports --all           # Show ports for all projects
 
 **Features:**
 - Configure DNS resolution for `.test` TLD → `127.0.0.1`
-- Use systemd-resolved (modern Linux standard)
-- Fallback to dnsmasq if systemd-resolved unavailable
+- Use dnsmasq
 - Register each project as `<hostname>.test` and `*.<hostname>.test`
 
 **Implementation:**
-
-**Option A: systemd-resolved (Fedora, Ubuntu 18.04+)**
-```python
-# Create /etc/systemd/resolved.conf.d/gantry.conf
-[Resolve]
-DNS=127.0.0.1
-Domains=~test
-
-# Then configure Caddy to listen on 127.0.0.1:53
-```
-
-Actually, systemd-resolved **cannot** act as a DNS server by default. Better approach:
-
-**Option B: dnsmasq (more portable)**
 - Install dnsmasq if not present
 - Create `/etc/dnsmasq.d/gantry.conf`:
   ```
@@ -495,14 +480,6 @@ Actually, systemd-resolved **cannot** act as a DNS server by default. Better app
   ```
 - Restart dnsmasq
 - Configure `/etc/resolv.conf` to use dnsmasq (or rely on systemd-resolved → dnsmasq chaining)
-
-**Option C: /etc/hosts file (fallback)**
-- Write entries to `/etc/hosts` for each project
-- Requires `sudo` but simple and portable
-- Dynamic updates less elegant
-
-**Recommended approach for Phase 3:**
-Start with **Option B (dnsmasq)** since it's standard on most Linux distros. Provide fallback to `/etc/hosts`.
 
 **Methods:**
 - `setup_dns()` → checks if dnsmasq installed, installs if needed, configures
@@ -539,7 +516,7 @@ Domains=~test
 
 #### 3.1
 - [ ] Implement `dns_manager.py`:
-  - [ ] Detect available DNS backend (dnsmasq, systemd-resolved)
+  - [ ] Detect available DNS backend (dnsmasq)
   - [ ] Check if dnsmasq installed, offer to install via package manager
   - [ ] `setup_dns()` with privilege escalation (sudo) handling
   - [ ] `register_dns(hostname)` to add DNS entry
@@ -549,7 +526,6 @@ Domains=~test
 #### 3.2
 - [ ] Implement `dns_templates.py`:
   - [ ] Template strings for dnsmasq config
-  - [ ] Template for systemd-resolved config
 
 #### 3.3
 - [ ] Extend `cli.py`:
