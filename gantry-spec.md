@@ -70,6 +70,8 @@ System Integration
   - `path` (absolute path to project directory)
   - `port` (allocated HTTP port)
   - `services` (list of docker-compose services)
+  - `service_ports` (map of service name → exposed port, e.g., `{"postgres": 5432, "redis": 6379}`)
+  - `exposed_ports` (array of all ports used by this project, including HTTP and service ports)
   - `docker_compose` (boolean: uses docker-compose?)
   - `working_directory` (where to run commands from)
   - `environment_vars` (project-specific env vars)
@@ -86,6 +88,13 @@ System Integration
       "path": "/home/user/projects/myapp",
       "port": 5001,
       "services": ["app", "db"],
+      "service_ports": {
+        "postgres": 5432,
+        "redis": 6379,
+        "mailhog_smtp": 1025,
+        "mailhog_web": 8025
+      },
+      "exposed_ports": [5001, 5432, 6379, 1025, 8025],
       "docker_compose": true,
       "working_directory": "/home/user/projects/myapp",
       "environment_vars": {},
@@ -98,11 +107,13 @@ System Integration
 ```
 
 **Methods:**
-- `register_project(hostname, path, port=None)` → validates, allocates port, saves
+- `register_project(hostname, path, port=None)` → validates, allocates HTTP port, detects service ports from docker-compose.yml (if present), saves all ports to metadata
 - `get_project(hostname)` → returns project metadata
 - `list_projects()` → returns all projects
 - `unregister_project(hostname)` → removes project
 - `update_project_status(hostname, status)` → sets running/stopped/error
+- `get_running_projects()` → returns list of projects with status="running"
+- `update_service_ports(hostname, service_ports, exposed_ports)` → updates port tracking
 
 #### 1.2 CLI Framework
 **File**: `gantry/cli.py`
@@ -115,6 +126,8 @@ gantry list                  # Show all registered projects
 gantry unregister <hostname> # Remove project
 gantry config <hostname>     # View/edit project config
 gantry status                # Show all projects + their status
+gantry ports <hostname>      # Show all ports used by a project
+gantry ports --all           # Show ports for all projects
 ```
 
 **Implementation Notes:**
@@ -122,20 +135,61 @@ gantry status                # Show all projects + their status
 - Rich tables for output formatting
 - Colorized output (green=running, grey=stopped, red=error, yellow=warning)
 - Interactive prompts for `register` (hostname, services, docker-compose?, port allocation)
+- During registration: auto-detect service ports from docker-compose.yml if present
+- Show detected ports to user for confirmation/modification
+- Store all ports (HTTP + services) in project metadata
 
 #### 1.3 Port Allocator
 **File**: `gantry/port_allocator.py`
 
 **Features:**
-- Allocates ports from range `5000-5999` (assumes standard ports for dev)
+- Allocates ports from range `5000-5999` for HTTP services (assumes standard ports for dev)
 - Tracks allocated ports in registry
 - Validates availability with `netstat` or `ss` command
 - Prevents conflicts across projects
+- Detects service ports from docker-compose.yml
+- Validates port conflicts before project startup
+- Provides port usage reporting
 
 **Methods:**
-- `allocate_port()` → finds first available port, reserves it
-- `is_port_available(port)` → checks if port is free
-- `get_project_port(hostname)` → returns assigned port
+- `allocate_port()` → finds first available port in 5000-5999 range, reserves it
+- `is_port_available(port)` → checks if port is free (system-level check)
+- `get_project_port(hostname)` → returns assigned HTTP port
+- `detect_service_ports(compose_file_path)` → parses docker-compose.yml and returns map of service name → exposed port
+- `check_port_conflicts(hostname, ports)` → checks if any ports conflict with running projects, returns list of conflicts
+- `get_running_project_ports()` → returns dict of running project hostnames → their exposed_ports arrays
+- `get_port_usage()` → returns dict mapping port → list of projects using it (for reporting)
+- `validate_startup_ports(hostname)` → validates all project ports against running projects, raises PortConflictError if conflicts found
+
+**Port Detection Details:**
+- `detect_service_ports()` parses docker-compose.yml for `ports` mappings:
+  - Format: `"5432:5432"` or `"5432/tcp"` → extracts host port (first number)
+  - Handles both `ports:` array and single port string formats
+  - Maps service name to exposed port (e.g., `{"postgres": 5432, "redis": 6379}`)
+  - For services without explicit port mappings, infers from standard ports:
+    - `postgres` → 5432
+    - `redis` → 6379
+    - `mysql` → 3306
+    - `mailhog` → 1025 (SMTP), 8025 (Web UI)
+- Combines HTTP port + service ports into `exposed_ports` array
+- Stores both `service_ports` (mapping) and `exposed_ports` (flat list) for efficient conflict checking
+
+**Port Conflict Detection:**
+- On project startup, `validate_startup_ports()`:
+  1. Gets all running projects via `registry.get_running_projects()`
+  2. For each running project, retrieves its `exposed_ports` array
+  3. Checks if any port in the starting project's `exposed_ports` exists in running projects
+  4. Returns list of conflicts: `[{"port": 5432, "conflicting_project": "proj2", "service": "postgres"}]`
+  5. If conflicts found and not forced: raises `PortConflictError` with details
+  6. If conflicts found and forced: logs warning with conflict details but proceeds
+
+**Error Handling:**
+- `PortConflictError` exception includes:
+  - List of conflicting ports with details
+  - Which projects are using conflicting ports
+  - Suggested resolution (stop conflicting project or use different ports)
+- CLI displays user-friendly error message with conflict details
+- `--force` flag allows bypassing conflict check (with warning)
 
 #### 1.4 Project Auto-Detection (Nice-to-have for Phase 1)
 **File**: `gantry/detectors.py`
@@ -143,6 +197,8 @@ gantry status                # Show all projects + their status
 **Auto-detect:**
 - Presence of `docker-compose.yml` → assume Docker-based
 - Presence of `Dockerfile` → containerized
+- Service ports from `docker-compose.yml` → parse `ports` mappings to detect exposed ports
+- Standard service ports (Postgres: 5432, Redis: 6379, MySQL: 3306, etc.) → infer from service names/images
 
 ### Phase 1 Checklist
 
@@ -172,6 +228,11 @@ gantry status                # Show all projects + their status
   - [ ] Port availability check via subprocess
   - [ ] Track allocated ports
   - [ ] Error handling for already-allocated ports
+  - [ ] `detect_service_ports()` to parse docker-compose.yml for port mappings
+  - [ ] `check_port_conflicts()` to validate against running projects
+  - [ ] `get_running_project_ports()` to query registry for active projects
+  - [ ] `validate_startup_ports()` with conflict detection
+  - [ ] `get_port_usage()` for reporting which projects use which ports
 
 #### 1.4
 - [ ] Implement `cli.py` with Typer:
@@ -184,11 +245,15 @@ gantry status                # Show all projects + their status
 #### 1.5
 - [ ] Implement `detectors.py`:
   - [ ] Docker Compose detection
+  - [ ] Port detection from docker-compose.yml (parse `ports` mappings)
+  - [ ] Standard service port inference (Postgres, Redis, MySQL, etc.)
   
 #### 1.6
 - [ ] Write tests:
   - [ ] Registry CRUD operations
   - [ ] Port allocation logic
+  - [ ] Port detection from docker-compose.yml (various formats)
+  - [ ] Port conflict detection (multiple projects, same ports)
   - [ ] CLI command parsing
 
 #### 1.7
@@ -200,6 +265,8 @@ gantry status                # Show all projects + their status
 #### 1.8
 - [ ] Documentation:
   - [ ] Usage examples for `register`/`list`/`status`
+  - [ ] Port conflict detection and resolution
+  - [ ] How service ports are detected from docker-compose.yml
 
 ---
 
@@ -220,16 +287,23 @@ gantry status                # Show all projects + their status
 - Start/stop/restart projects (Docker Compose)
 - Monitor process status using `psutil`
 - Implement health checks for services
+- Port conflict detection before startup
+- Warn on conflicts, optionally block startup
 
 **Methods:**
-- `start_project(hostname)` → starts services, records PID
+- `start_project(hostname, force=False)` → validates ports, checks conflicts, starts services, records PID
 - `stop_project(hostname)` → graceful shutdown with timeout
 - `restart_project(hostname)` → stop + start
 - `get_status(hostname)` → returns (running, stopped, error)
 - `get_logs(hostname, service=None, follow=False)` → streams logs from `docker compose logs`
 - `health_check(hostname)` → HTTP GET to localhost:port
+- `check_startup_conflicts(hostname)` → checks for port conflicts, returns conflict report or None
 
 **Implementation Details:**
+- Before starting: call `port_allocator.validate_startup_ports(hostname)` to check conflicts
+- If conflicts found and `force=False`: raise `PortConflictError` with details
+- If conflicts found and `force=True`: log warning but proceed
+- Conflict report format: `{"port": 5432, "conflicting_project": "proj2", "service": "postgres"}`
 - For Docker Compose: `subprocess.Popen(['docker-compose', '-f', compose_path, 'up', '-d'])`
 - For logs: `subprocess.Popen(['docker', 'compose', 'logs', '--follow', service])`
 - Store PIDs in `~/.gantry/projects/<hostname>/state.json`
@@ -255,12 +329,15 @@ gantry status                # Show all projects + their status
 #### 2.1
 - [ ] Implement `process_manager.py`:
   - [ ] `start_project()` with Docker Compose support
+  - [ ] Port conflict checking before startup (call `port_allocator.validate_startup_ports()`)
+  - [ ] Conflict warning/error handling with `--force` flag support
+  - [ ] `check_startup_conflicts()` to generate conflict reports
   - [ ] `stop_project()` with graceful shutdown timeout
   - [ ] `restart_project()`
   - [ ] `get_status()` via PID validation
   - [ ] `get_logs()` via `docker compose logs`
   - [ ] Health check via HTTP GET + retry logic
-  - [ ] Error handling (service already running, port in use, etc.)
+  - [ ] Error handling (service already running, port in use, port conflicts, etc.)
 
 #### 2.2
 - [ ] Implement `orchestrator.py`:
@@ -273,16 +350,21 @@ gantry status                # Show all projects + their status
   - [ ] Add `auto_start` boolean field to project metadata
   - [ ] Add `last_status_change` timestamp
   - [ ] Persist PID on start
+  - [ ] Add `service_ports` and `exposed_ports` fields to metadata
+  - [ ] Implement `get_running_projects()` method
+  - [ ] Implement `update_service_ports()` method
 
 #### 2.4
 - [ ] Extend `cli.py`:
-  - [ ] `start <hostname>` command
+  - [ ] `start <hostname> [--force]` command (with conflict checking)
   - [ ] `stop <hostname>` command
   - [ ] `restart <hostname>` command
   - [ ] `start-all` command
   - [ ] `stop-all` command
   - [ ] `logs <hostname> [--follow] [--service <name>]` command
   - [ ] `health-check <hostname>` command
+  - [ ] `ports <hostname>` command (show all ports for a project)
+  - [ ] `ports --all` command (show ports for all projects)
 
 #### 2.5
 - [ ] Update `process_manager.py`:
@@ -529,6 +611,7 @@ adminer.proj2.test {
 - Map projects to services and ports
 - Define special services (Adminer for DB, MailHog for SMTP)
 - Auto-detect services from docker-compose.yml
+- Use `service_ports` from project registry for routing configuration
 
 **Example mapping:**
 ```json
@@ -1123,12 +1206,16 @@ gantry = "gantry.cli:app"
 ### Unit Tests (Per module)
 - Registry CRUD operations
 - Port allocation logic
+- Port detection from docker-compose.yml (various port mapping formats)
+- Port conflict detection (multiple projects with overlapping ports)
 - DNS config generation
 - Caddyfile generation
 - Certificate generation
 
 ### Integration Tests
 - Full project lifecycle (register → start → stop → unregister)
+- Port conflict detection on startup (two projects with same service ports)
+- Port conflict warning/error handling with --force flag
 - DNS resolution verification
 - Caddy routing verification
 - Docker service startup
