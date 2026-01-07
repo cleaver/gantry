@@ -8,7 +8,6 @@
 - Automatic DNS resolution for `.test` domains
 - Reverse proxy routing via Caddy
 - SSL/TLS certificate management with system integration
-- Multi-project orchestration (run multiple apps simultaneously)
 - Port conflict prevention and management
 - TUI management console
 
@@ -191,7 +190,7 @@ gantry ports --all           # Show ports for all projects
 - Allocates ports from range `5000-5999` for HTTP services (assumes standard ports for dev)
 - Tracks allocated ports in registry
 - Validates availability with `netstat` or `ss` command
-- Prevents conflicts across projects
+- Warns about potential port conflicts across projects
 - Detects service ports from docker-compose.yml
 - Validates port conflicts before project startup
 - Provides port usage reporting
@@ -207,17 +206,13 @@ gantry ports --all           # Show ports for all projects
 - `validate_startup_ports(hostname)` → validates all project ports against running projects, raises PortConflictError if conflicts found
 
 **Port Detection Details:**
-- `detect_service_ports()` parses docker-compose.yml for `ports` mappings:
-  - Format: `"5432:5432"` or `"5432/tcp"` → extracts host port (first number)
-  - Handles both `ports:` array and single port string formats
-  - Maps service name to exposed port (e.g., `{"postgres": 5432, "redis": 6379}`)
-  - For services without explicit port mappings, infers from standard ports:
-    - `postgres` → 5432
-    - `redis` → 6379
-    - `mysql` → 3306
-    - `mailhog` → 1025 (SMTP), 8025 (Web UI)
-- Combines HTTP port + service ports into `exposed_ports` array
-- Stores both `service_ports` (mapping) and `exposed_ports` (flat list) for efficient conflict checking
+- `detect_service_ports()` parses `docker-compose.yml` for `ports` mappings to find ports exposed to the host.
+  - It only considers ports explicitly published to the host (e.g., `"5432:5432"`). It extracts the host port (the first number).
+  - Ports not explicitly published are considered internal to the Docker network and are ignored.
+  - Handles both long and short `ports` syntax.
+  - Maps service name to the exposed host port (e.g., `{"postgres": 5432}`).
+- Combines the project's main HTTP port and any detected service ports into an `exposed_ports` array for conflict checking.
+- Stores both `service_ports` (the service-to-port mapping) and `exposed_ports` (a flat list of all ports) in the project's metadata.
 
 **Port Conflict Detection:**
 - On project startup, `validate_startup_ports()`:
@@ -239,10 +234,9 @@ gantry ports --all           # Show ports for all projects
 **File**: `gantry/detectors.py`
 
 **Auto-detect:**
-- Presence of `docker-compose.yml` → assume Docker-based
-- Presence of `Dockerfile` → containerized
-- Service ports from `docker-compose.yml` → parse `ports` mappings to detect exposed ports
-- Standard service ports (Postgres: 5432, Redis: 6379, MySQL: 3306, etc.) → infer from service names/images
+- Presence of `docker-compose.yml` → assume Docker-based project.
+- Presence of `Dockerfile` → containerized project.
+- Exposed service ports from `docker-compose.yml` → parse `ports` mappings to detect ports published to the host.
 
 **Methods:**
 - `detect_project_type(path)` → returns project type (docker-compose, dockerfile, native, etc.)
@@ -301,7 +295,6 @@ gantry ports --all           # Show ports for all projects
 - [ ] Implement `detectors.py`:
   - [ ] Docker Compose detection
   - [ ] Port detection from docker-compose.yml (parse `ports` mappings)
-  - [ ] Standard service port inference (Postgres, Redis, MySQL, etc.)
   - [ ] `rescan_project()` method to detect changes and generate diff
   - [ ] Handle edge cases (removed docker-compose.yml, invalid paths)
   
@@ -374,16 +367,13 @@ gantry ports --all           # Show ports for all projects
 **File**: `gantry/orchestrator.py`
 
 **Features:**
-- Start/stop multiple projects
-- Handle dependencies (e.g., DB must start before app)
-- Implement "auto-start" configuration per project
-- Service health monitoring loop
+- Stop all running projects with a single command.
+- Service health monitoring loop.
 
 **Methods:**
-- `start_all()` → starts all "auto-start" projects
-- `stop_all()` → graceful shutdown of all projects
-- `get_all_status()` → dictionary of all projects → status
-- `watch_services()` → background process monitoring health, auto-restart on failure (optional)
+- `stop_all()` → graceful shutdown of all running projects.
+- `get_all_status()` → dictionary of all projects → status.
+- `watch_services()` → background process monitoring health, auto-restart on failure (optional).
 
 ### Phase 2 Checklist
 
@@ -401,13 +391,11 @@ gantry ports --all           # Show ports for all projects
 
 #### 2.2
 - [ ] Implement `orchestrator.py`:
-  - [ ] `start_all()` and `stop_all()`
-  - [ ] Dependency ordering for services
+  - [ ] `stop_all()`
   - [ ] Status aggregation
 
 #### 2.3
 - [ ] Extend `registry.py`:
-  - [ ] Add `auto_start` boolean field to project metadata
   - [ ] Add `last_status_change` timestamp
   - [ ] Persist PID on start
   - [ ] Add `service_ports` and `exposed_ports` fields to metadata
@@ -421,7 +409,6 @@ gantry ports --all           # Show ports for all projects
   - [ ] `start <hostname>` command (with conflict checking)
   - [ ] `stop <hostname>` command
   - [ ] `restart <hostname>` command
-  - [ ] `start-all` command
   - [ ] `stop-all` command
   - [ ] `logs <hostname> [--follow] [--service <name>]` command
   - [ ] `health-check <hostname>` command
@@ -801,7 +788,6 @@ adminer.proj2.test {
 - `u` → Update selected project (re-scan, show diff, apply changes)
 - `l` → View logs for selected project
 - `r` → Restart selected project
-- `a` → Start all projects
 - `A` → Stop all projects
 - `q` → Quit
 - `?` → Help/keybindings
