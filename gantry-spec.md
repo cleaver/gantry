@@ -292,11 +292,11 @@ gantry ports --all           # Show ports for all projects
   - [x] `config` command to view metadata
 
 #### 1.5
-- [ ] Implement `detectors.py`:
-  - [ ] Docker Compose detection
-  - [ ] Port detection from docker-compose.yml (parse `ports` mappings)
-  - [ ] `rescan_project()` method to detect changes and generate diff
-  - [ ] Handle edge cases (removed docker-compose.yml, invalid paths)
+- [x] Implement `detectors.py`:
+  - [x] Docker Compose detection
+  - [x] Port detection from docker-compose.yml (parse `ports` mappings)
+  - [x] `rescan_project()` method to detect changes and generate diff
+  - [x] Handle edge cases (removed docker-compose.yml, invalid paths)
   
 #### 1.6
 - [ ] Write tests:
