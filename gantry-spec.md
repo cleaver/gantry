@@ -272,15 +272,15 @@ gantry ports --all           # Show ports for all projects
   - [x] `last_updated` timestamp tracking
 
 #### 1.3
-- [ ] Implement `port_allocator.py`:
-  - [ ] Port availability check via subprocess
-  - [ ] Track allocated ports
-  - [ ] Error handling for already-allocated ports
-  - [ ] `detect_service_ports()` to parse docker-compose.yml for port mappings
-  - [ ] `check_port_conflicts()` to validate against running projects
-  - [ ] `get_running_project_ports()` to query registry for active projects
-  - [ ] `validate_startup_ports()` with conflict detection
-  - [ ] `get_port_usage()` for reporting which projects use which ports
+- [x] Implement `port_allocator.py`:
+  - [x] Port availability check via subprocess
+  - [x] Track allocated ports
+  - [x] Error handling for already-allocated ports
+  - [x] `detect_service_ports()` to parse docker-compose.yml for port mappings
+  - [x] `check_port_conflicts()` to validate against running projects
+  - [x] `get_running_project_ports()` to query registry for active projects
+  - [x] `validate_startup_ports()` with conflict detection
+  - [x] `get_port_usage()` for reporting which projects use which ports
 
 #### 1.4
 - [ ] Implement `cli.py` with Typer:
