@@ -77,6 +77,7 @@ System Integration
   - `environment_vars` (project-specific env vars)
   - `registered_at` (timestamp)
   - `last_started` (timestamp)
+  - `last_updated` (timestamp, updated when project metadata is refreshed)
   - `status` (running, stopped, error)
 
 **Data Structure Example:**
@@ -100,6 +101,7 @@ System Integration
       "environment_vars": {},
       "registered_at": "2026-01-04T22:30:00Z",
       "last_started": null,
+      "last_updated": "2026-01-04T22:30:00Z",
       "status": "stopped"
     }
   }
@@ -114,6 +116,7 @@ System Integration
 - `update_project_status(hostname, status)` → sets running/stopped/error
 - `get_running_projects()` → returns list of projects with status="running"
 - `update_service_ports(hostname, service_ports, exposed_ports)` → updates port tracking
+- `update_project_metadata(hostname, **updates)` → atomic update of project metadata fields, sets last_updated timestamp
 
 #### 1.2 CLI Framework
 **File**: `gantry/cli.py`
@@ -124,6 +127,10 @@ gantry register              # Interactive registration in current directory
 gantry register --hostname <h> --path <p>   # Non-interactive
 gantry list                  # Show all registered projects
 gantry unregister <hostname> # Remove project
+gantry update <hostname>    # Re-scan project, update metadata (interactive)
+gantry update <hostname> --yes    # Auto-apply all detected changes
+gantry update <hostname> --dry-run    # Show what would change without applying
+gantry update <hostname> --force  # Ignore port conflicts during update
 gantry config <hostname>     # View/edit project config
 gantry status                # Show all projects + their status
 gantry ports <hostname>      # Show all ports used by a project
@@ -138,6 +145,43 @@ gantry ports --all           # Show ports for all projects
 - During registration: auto-detect service ports from docker-compose.yml if present
 - Show detected ports to user for confirmation/modification
 - Store all ports (HTTP + services) in project metadata
+- `update` command: re-scans project directory, detects changes, shows diff, updates metadata
+  - Re-runs detection logic (services, ports, docker-compose status)
+  - Compares with existing metadata to generate changelog
+  - Checks for port conflicts with running projects
+  - Warns if project is currently running (changes need restart)
+  - Supports `--dry-run` to preview changes, `--yes` to auto-apply, `--force` to ignore conflicts
+
+**Update Command Workflow:**
+1. Load existing project metadata from registry
+2. Re-scan project directory using `detectors.rescan_project()`
+3. Compare detected state with existing metadata
+4. Generate diff showing:
+   - Services added/removed
+   - Ports added/removed/changed
+   - docker-compose.yml status changes
+5. Check for port conflicts with running projects (via `port_allocator.check_port_conflicts()`)
+6. If project is running, warn that changes require restart
+7. Display changes and conflicts (unless `--yes` flag)
+8. Prompt for confirmation (unless `--yes` or `--dry-run`)
+9. If `--dry-run`: show changes and exit without applying
+10. If confirmed: apply updates via `registry.update_project_metadata()`
+11. Update `last_updated` timestamp
+12. If Caddy configured (Phase 4): regenerate Caddyfile and reload
+13. If DNS configured (Phase 3): update DNS entries if hostname changed (shouldn't happen)
+
+**What Gets Updated:**
+- `services` (list of docker-compose service names)
+- `service_ports` (map of service → port)
+- `exposed_ports` (recalculated array)
+- `docker_compose` (boolean, if docker-compose.yml removed)
+- `last_updated` (timestamp)
+
+**What Does NOT Change:**
+- `hostname` (immutable, requires unregister/re-register)
+- `port` (HTTP port, preserved unless explicitly changed)
+- `registered_at` (preserved)
+- `path` (preserved, but validated to still exist)
 
 #### 1.3 Port Allocator
 **File**: `gantry/port_allocator.py`
@@ -200,6 +244,14 @@ gantry ports --all           # Show ports for all projects
 - Service ports from `docker-compose.yml` → parse `ports` mappings to detect exposed ports
 - Standard service ports (Postgres: 5432, Redis: 6379, MySQL: 3306, etc.) → infer from service names/images
 
+**Methods:**
+- `detect_project_type(path)` → returns project type (docker-compose, dockerfile, native, etc.)
+- `detect_services(compose_file_path)` → returns list of service names from docker-compose.yml
+- `rescan_project(path, existing_metadata=None)` → re-scans project directory, returns detected changes as diff
+  - Compares current state with existing_metadata (if provided)
+  - Returns dict with keys: `services_added`, `services_removed`, `ports_changed`, `ports_added`, `ports_removed`
+  - Handles cases where docker-compose.yml is removed or path is invalid
+
 ### Phase 1 Checklist
 
 #### 1.1
@@ -222,6 +274,8 @@ gantry ports --all           # Show ports for all projects
   - [ ] Project data validation
   - [ ] CRUD operations for projects
   - [ ] Status tracking
+  - [ ] `update_project_metadata()` method with atomic updates
+  - [ ] `last_updated` timestamp tracking
 
 #### 1.3
 - [ ] Implement `port_allocator.py`:
@@ -239,6 +293,7 @@ gantry ports --all           # Show ports for all projects
   - [ ] `register` command (interactive prompts)
   - [ ] `list` command (tabular output)
   - [ ] `unregister` command with confirmation
+  - [ ] `update` command (re-scan project, show diff, update metadata)
   - [ ] `status` command showing all projects
   - [ ] `config` command to view metadata
 
@@ -247,6 +302,8 @@ gantry ports --all           # Show ports for all projects
   - [ ] Docker Compose detection
   - [ ] Port detection from docker-compose.yml (parse `ports` mappings)
   - [ ] Standard service port inference (Postgres, Redis, MySQL, etc.)
+  - [ ] `rescan_project()` method to detect changes and generate diff
+  - [ ] Handle edge cases (removed docker-compose.yml, invalid paths)
   
 #### 1.6
 - [ ] Write tests:
@@ -255,6 +312,9 @@ gantry ports --all           # Show ports for all projects
   - [ ] Port detection from docker-compose.yml (various formats)
   - [ ] Port conflict detection (multiple projects, same ports)
   - [ ] CLI command parsing
+  - [ ] `update` command: detect changes, generate diff, apply updates
+  - [ ] `update` command: handle removed docker-compose.yml
+  - [ ] `update` command: port conflict detection during update
 
 #### 1.7
 - [ ] Update dependencies in `pyproject.toml`:
@@ -264,9 +324,10 @@ gantry ports --all           # Show ports for all projects
 
 #### 1.8
 - [ ] Documentation:
-  - [ ] Usage examples for `register`/`list`/`status`
+  - [ ] Usage examples for `register`/`list`/`status`/`update`
   - [ ] Port conflict detection and resolution
   - [ ] How service ports are detected from docker-compose.yml
+  - [ ] `update` command usage: when to use, what it detects, how to handle conflicts
 
 ---
 
@@ -351,8 +412,10 @@ gantry ports --all           # Show ports for all projects
   - [ ] Add `last_status_change` timestamp
   - [ ] Persist PID on start
   - [ ] Add `service_ports` and `exposed_ports` fields to metadata
+  - [ ] Add `last_updated` timestamp field
   - [ ] Implement `get_running_projects()` method
   - [ ] Implement `update_service_ports()` method
+  - [ ] Implement `update_project_metadata()` method for atomic updates
 
 #### 2.4
 - [ ] Extend `cli.py`:
@@ -365,6 +428,14 @@ gantry ports --all           # Show ports for all projects
   - [ ] `health-check <hostname>` command
   - [ ] `ports <hostname>` command (show all ports for a project)
   - [ ] `ports --all` command (show ports for all projects)
+  - [ ] `update <hostname>` command implementation:
+    - [ ] Call `detectors.rescan_project()` to detect changes
+    - [ ] Generate and display diff/changelog
+    - [ ] Check for port conflicts with running projects
+    - [ ] Warn if project is currently running
+    - [ ] Support `--dry-run`, `--yes`, `--force` flags
+    - [ ] Apply updates via `registry.update_project_metadata()`
+    - [ ] Update Caddy routing if configured (Phase 4)
 
 #### 2.5
 - [ ] Update `process_manager.py`:
@@ -689,6 +760,10 @@ adminer.proj2.test {
   - [ ] Prompt for service ports
   - [ ] Auto-generate Caddyfile on registration
   - [ ] Generate certs on registration
+- [ ] Integration in `update` command:
+  - [ ] If service ports changed, regenerate Caddyfile
+  - [ ] Reload Caddy configuration after update (if Caddy running)
+  - [ ] Warn if project is running (routing changes need restart)
 
 #### 4.8
 - [ ] Tests:
@@ -727,9 +802,9 @@ adminer.proj2.test {
 │ Projects: [Filter]                                 Status: Ready │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  proj1    ■ Running   (5001)   [Start] [Stop] [Logs]           │
-│  proj2    ● Stopped   (5002)   [Start] [Stop] [Logs]           │
-│  proj3    ▲ Error     (5003)   [Start] [Stop] [Logs]           │
+│  proj1    ■ Running   (5001)   [Start] [Stop] [Update] [Logs]  │
+│  proj2    ● Stopped   (5002)   [Start] [Stop] [Update] [Logs]  │
+│  proj3    ▲ Error     (5003)   [Start] [Stop] [Update] [Logs]  │
 │                                                                  │
 ├────────────────────────────────────────────────────────────────┤
 │ Logs (proj1):                                                    │
@@ -738,7 +813,7 @@ adminer.proj2.test {
 │ 22:35:12 [INFO] Postgres connection pool ready                 │
 │                                                                  │
 ├────────────────────────────────────────────────────────────────┤
-│ Commands: 's' start | 'd' stop | 'l' logs | 'q' quit           │
+│ Commands: 's' start | 'd' stop | 'u' update | 'l' logs | 'q' quit │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -753,6 +828,7 @@ adminer.proj2.test {
 **Key bindings:**
 - `↑/↓` → Navigate projects
 - `Enter` or `Space` → Toggle start/stop
+- `u` → Update selected project (re-scan, show diff, apply changes)
 - `l` → View logs for selected project
 - `r` → Restart selected project
 - `a` → Start all projects
@@ -788,6 +864,9 @@ adminer.proj2.test {
 #### 5.5
 - [ ] Implement action handlers:
   - [ ] Start/Stop/Restart buttons
+  - [ ] Update button and `u` key binding
+  - [ ] Update dialog showing detected changes (diff view)
+  - [ ] Confirmation for applying updates
   - [ ] Keyboard shortcuts
   - [ ] Confirmation dialogs
   - [ ] Loading states
@@ -1214,10 +1293,12 @@ gantry = "gantry.cli:app"
 
 ### Integration Tests
 - Full project lifecycle (register → start → stop → unregister)
+- Project update workflow (register → modify docker-compose.yml → update → verify changes)
 - Port conflict detection on startup (two projects with same service ports)
+- Port conflict detection during update (new ports conflict with running projects)
 - Port conflict warning/error handling with --force flag
 - DNS resolution verification
-- Caddy routing verification
+- Caddy routing verification (including after update)
 - Docker service startup
 
 ### End-to-End Tests
@@ -1252,6 +1333,7 @@ gantry = "gantry.cli:app"
    - All commands with examples
    - Flags and options
    - Exit codes and errors
+   - `update` command: usage, flags (--dry-run, --yes, --force), examples
 
 4. **CONFIGURATION.md**
    - Project metadata structure
