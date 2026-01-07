@@ -283,13 +283,13 @@ gantry ports --all           # Show ports for all projects
   - [x] `get_port_usage()` for reporting which projects use which ports
 
 #### 1.4
-- [ ] Implement `cli.py` with Typer:
-  - [ ] `register` command (interactive prompts)
-  - [ ] `list` command (tabular output)
-  - [ ] `unregister` command with confirmation
-  - [ ] `update` command (re-scan project, show diff, update metadata)
-  - [ ] `status` command showing all projects
-  - [ ] `config` command to view metadata
+- [x] Implement `cli.py` with Typer:
+  - [x] `register` command (interactive prompts)
+  - [x] `list` command (tabular output)
+  - [x] `unregister` command with confirmation
+  - [x] `update` command (re-scan project, show diff, update metadata)
+  - [x] `status` command showing all projects
+  - [x] `config` command to view metadata
 
 #### 1.5
 - [ ] Implement `detectors.py`:
