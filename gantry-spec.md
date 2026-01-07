@@ -42,7 +42,6 @@ Gantry Core (registry, lifecycle management)
 System Integration
     ├─→ systemd-resolved (DNS)
     ├─→ Caddy (reverse proxy)
-    ├─→ Docker (optional services: postgres, mailhog, redis)
     ├─→ System certificate store (/usr/local/share/ca-certificates/)
     └─→ /etc/dnsmasq.d/ DNS config
 ```
@@ -861,155 +860,7 @@ adminer.proj2.test {
 
 ---
 
-## Phase 6: Docker Service Integration
-
-### Objectives
-- Simplify database and third-party service setup
-- Auto-start Docker containers (Postgres, Redis, MailHog, Adminer)
-- Manage Docker networks
-- Centralized service configuration
-
-### Technical Components
-
-#### 6.1 Docker Service Manager
-**File**: `gantry/docker_service_manager.py`
-
-**Features:**
-- Auto-create shared Docker network (`gantry-local`)
-- Pre-built Docker Compose configs for common services
-- Option to use project's own docker-compose.yml or centralized services
-- Health checks for Docker services
-
-**Supported services:**
-- PostgreSQL (configurable version)
-- Redis
-- MySQL
-- MailHog (SMTP testing)
-- Adminer (DB client)
-
-**Configuration template:**
-```yaml
-# ~/.gantry/services/docker-compose.yml (optional)
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: gantry
-      POSTGRES_PASSWORD: gantry
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - gantry-local
-
-  redis:
-    image: redis:7-alpine
-    networks:
-      - gantry-local
-
-  mailhog:
-    image: mailhog/mailhog:latest
-    networks:
-      - gantry-local
-    ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
-
-volumes:
-  postgres_data:
-
-networks:
-  gantry-local:
-    driver: bridge
-```
-
-**Methods:**
-- `setup_docker_network()` → creates shared network
-- `start_service(service_name)` → starts service container
-- `stop_service(service_name)` → stops service container
-- `health_check(service_name)` → verifies service is ready
-- `get_service_port(service_name)` → returns exposed port
-
-#### 6.2 Service Configuration
-**File**: `gantry/services.py`
-
-**Per-project service definitions:**
-```json
-{
-  "proj1": {
-    "services": {
-      "postgres": {
-        "enabled": true,
-        "image": "postgres:15",
-        "version": "15",
-        "database": "proj1_dev"
-      },
-      "redis": {
-        "enabled": false
-      },
-      "mailhog": {
-        "enabled": true,
-        "port": 1025
-      },
-      "adminer": {
-        "enabled": true,
-        "database_service": "postgres"
-      }
-    }
-  }
-}
-```
-
-### Phase 6 Checklist
-
-#### 6.1
-- [ ] Implement `docker_service_manager.py`:
-  - [ ] Docker network creation
-  - [ ] Service lifecycle (start/stop)
-  - [ ] Health checks for containers
-  - [ ] Port mapping and exposure
-
-#### 6.2
-- [ ] Create service templates:
-  - [ ] `services/postgres.yml` template
-  - [ ] `services/redis.yml` template
-  - [ ] `services/mailhog.yml` template
-  - [ ] `services/adminer.yml` template
-
-#### 6.3
-- [ ] Extend project registration:
-  - [ ] Prompt for services during `register`
-  - [ ] Auto-detect services from docker-compose.yml
-  - [ ] Store service config in project metadata
-
-#### 6.4
-- [ ] Extend `orchestrator.py`:
-  - [ ] Start services as part of project startup
-  - [ ] Stop services on project shutdown
-  - [ ] Health check for services
-
-#### 6.5
-- [ ] Extend `cli.py`:
-  - [ ] `services <hostname>` → show enabled services
-  - [ ] `service-start <hostname> <service>`
-  - [ ] `service-stop <hostname> <service>`
-
-#### 6.6
-- [ ] Tests:
-  - [ ] Mock Docker CLI calls
-  - [ ] Test service startup/shutdown
-  - [ ] Test health checks
-
-#### 6.7
-- [ ] Documentation:
-  - [ ] Supported services and versions
-  - [ ] Configuration examples
-  - [ ] Service health check details
-
----
-
-## Phase 7: Advanced Features & Polish
+## Phase 6: Advanced Features & Polish
 
 ### Objectives
 - Add convenience features
@@ -1019,82 +870,82 @@ networks:
 
 ### Features to Implement
 
-#### 7.1 Environment Variable Management
+#### 6.1 Environment Variable Management
 - Per-project `.env` files stored in `~/.gantry/projects/<hostname>/`
 - CLI to set/get environment variables
 - Auto-inject on service start
 
-#### 7.2 Project Templates
+#### 6.2 Project Templates
 - Quick-start templates for common stacks
 - `gantry new <template> <hostname>` → scaffold project
 - Templates: Phoenix, Rails, Next.js, FastAPI, etc.
 
-#### 7.3 Backup & Recovery
+#### 6.3 Backup & Recovery
 - Snapshot project state (registry, config, certs)
 - Export/import projects
 - Disaster recovery
 
-#### 7.4 Analytics & Monitoring
+#### 6.4 Analytics & Monitoring
 - Track uptime, restart frequency
 - Log analysis (errors, warnings)
 - Summary reports
 
-#### 7.5 Integration Hooks
+#### 6.5 Integration Hooks
 - Pre-start/post-start scripts
 - Pre-stop/post-stop scripts
 - Custom health checks
 
-#### 7.6 Multi-User Support (Advanced)
+#### 6.6 Multi-User Support (Advanced)
 - Share dev environments across team
 - User-specific port ranges
 - Centralized service repository
 
-### Phase 7 Checklist
+### Phase 6 Checklist
 
-#### 7.1
+#### 6.1
 - [ ] Environment variable management:
   - [ ] `gantry env set <hostname> KEY VALUE`
   - [ ] `gantry env get <hostname> KEY`
   - [ ] `gantry env list <hostname>`
   - [ ] Auto-load on project start
 
-#### 7.2
+#### 6.2
 - [ ] Project templates:
   - [ ] Template registry in `~/.gantry/templates/`
   - [ ] `gantry new <template> <hostname>`
   - [ ] Built-in templates for popular stacks
 
-#### 7.3
+#### 6.3
 - [ ] Backup & recovery:
   - [ ] `gantry backup` → export all projects
   - [ ] `gantry restore <backup_file>`
   - [ ] Compress and encrypt backups
 
-#### 7.4
+#### 6.4
 - [ ] Analytics:
   - [ ] `gantry stats <hostname>` → uptime, restarts
   - [ ] `gantry report` → summary of all projects
 
-#### 7.5
+#### 6.5
 - [ ] Hooks:
   - [ ] `pre_start`, `post_start`, `pre_stop`, `post_stop` scripts
   - [ ] Store in project config
   - [ ] Execute with project context
 
-#### 7.6
+#### 6.6
 - [ ] Documentation:
   - [ ] Full user guide
   - [ ] API reference
   - [ ] Troubleshooting section
   - [ ] Video tutorials (optional)
 
-#### 7.7
+#### 6.7
 - [ ] Testing:
   - [ ] Integration tests (full workflow)
   - [ ] End-to-end tests
   - [ ] Performance tests
 
-#### 7.8
+#### 6.8
 - [ ] Packaging & Distribution:
   - [ ] PyPI publication
   - [ ] Installation via `pip install gantry` or `uv tool install gantry`
@@ -1188,7 +1039,6 @@ gantry/
     cert_manager.py
     routing_config.py
     detectors.py
-    docker_service_manager.py
     tui/
       __init__.py
       app.py
@@ -1245,9 +1095,8 @@ gantry = "gantry.cli:app"
 | **3** | 1 week | DNS configuration, .test domain resolution |
 | **4** | 2 weeks | Caddy reverse proxy, certificate management |
 | **5** | 1 week | TUI console (alternative to web) |
-| **6** | 1-2 weeks | Docker service integration |
-| **7** | 2-3 weeks | Polish, docs, distribution, CI/CD |
-| **Total** | **9-13 weeks** | Full feature set, production-ready |
+| **6** | 2-3 weeks | Polish, docs, distribution, CI/CD |
+| **Total** | **8-11 weeks** | Full feature set, production-ready |
 
 ---
 
