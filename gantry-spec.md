@@ -80,6 +80,9 @@ System Integration
   - `last_updated` (timestamp, updated when project metadata is refreshed)
   - `status` (running, stopped, error)
 
+**Implementation**:
+- Can use a "temporary file and atomic rename" strategy for writing to registry to ensure the registry file is never left in a partially written state
+
 **Data Structure Example:**
 ```json
 {
@@ -130,7 +133,6 @@ gantry unregister <hostname> # Remove project
 gantry update <hostname>    # Re-scan project, update metadata (interactive)
 gantry update <hostname> --yes    # Auto-apply all detected changes
 gantry update <hostname> --dry-run    # Show what would change without applying
-gantry update <hostname> --force  # Ignore port conflicts during update
 gantry config <hostname>     # View/edit project config
 gantry status                # Show all projects + their status
 gantry ports <hostname>      # Show all ports used by a project
@@ -150,7 +152,7 @@ gantry ports --all           # Show ports for all projects
   - Compares with existing metadata to generate changelog
   - Checks for port conflicts with running projects
   - Warns if project is currently running (changes need restart)
-  - Supports `--dry-run` to preview changes, `--yes` to auto-apply, `--force` to ignore conflicts
+  - Supports `--dry-run` to preview changes, `--yes` to auto-apply
 
 **Update Command Workflow:**
 1. Load existing project metadata from registry
@@ -233,7 +235,6 @@ gantry ports --all           # Show ports for all projects
   - Which projects are using conflicting ports
   - Suggested resolution (stop conflicting project or use different ports)
 - CLI displays user-friendly error message with conflict details
-- `--force` flag allows bypassing conflict check (with warning)
 
 #### 1.4 Project Auto-Detection (Nice-to-have for Phase 1)
 **File**: `gantry/detectors.py`
@@ -391,7 +392,6 @@ gantry ports --all           # Show ports for all projects
 - [ ] Implement `process_manager.py`:
   - [ ] `start_project()` with Docker Compose support
   - [ ] Port conflict checking before startup (call `port_allocator.validate_startup_ports()`)
-  - [ ] Conflict warning/error handling with `--force` flag support
   - [ ] `check_startup_conflicts()` to generate conflict reports
   - [ ] `stop_project()` with graceful shutdown timeout
   - [ ] `restart_project()`
@@ -419,7 +419,7 @@ gantry ports --all           # Show ports for all projects
 
 #### 2.4
 - [ ] Extend `cli.py`:
-  - [ ] `start <hostname> [--force]` command (with conflict checking)
+  - [ ] `start <hostname>` command (with conflict checking)
   - [ ] `stop <hostname>` command
   - [ ] `restart <hostname>` command
   - [ ] `start-all` command
@@ -433,7 +433,7 @@ gantry ports --all           # Show ports for all projects
     - [ ] Generate and display diff/changelog
     - [ ] Check for port conflicts with running projects
     - [ ] Warn if project is currently running
-    - [ ] Support `--dry-run`, `--yes`, `--force` flags
+    - [ ] Support `--dry-run`, `--yes` flags
     - [ ] Apply updates via `registry.update_project_metadata()`
     - [ ] Update Caddy routing if configured (Phase 4)
 
@@ -1267,7 +1267,6 @@ gantry = "gantry.cli:app"
 - Project update workflow (register → modify docker-compose.yml → update → verify changes)
 - Port conflict detection on startup (two projects with same service ports)
 - Port conflict detection during update (new ports conflict with running projects)
-- Port conflict warning/error handling with --force flag
 - DNS resolution verification
 - Caddy routing verification (including after update)
 - Docker service startup
@@ -1304,7 +1303,7 @@ gantry = "gantry.cli:app"
    - All commands with examples
    - Flags and options
    - Exit codes and errors
-   - `update` command: usage, flags (--dry-run, --yes, --force), examples
+   - `update` command: usage, flags (--dry-run, --yes), examples
 
 4. **CONFIGURATION.md**
    - Project metadata structure
