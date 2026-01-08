@@ -72,22 +72,24 @@ def detect_service_ports(compose_file_path: Path) -> Dict[str, int]:
             continue
 
         for port_mapping in service_config["ports"]:
-            try:
-                # Short syntax "HOST:CONTAINER"
-                host_port_str = str(port_mapping).split(":")[0]
-                if host_port_str.isdigit():
-                    host_port = int(host_port_str)
+            # Check for long syntax first (dict with 'published' field)
+            if isinstance(port_mapping, dict) and 'published' in port_mapping:
+                if str(port_mapping['published']).isdigit():
+                    host_port = int(port_mapping['published'])
                     if service_name not in service_ports:
                         service_ports[service_name] = host_port
                         break  # Use the first port found for a service
-            except (ValueError, IndexError):
-                # Long syntax
-                if isinstance(port_mapping, dict) and 'published' in port_mapping:
-                    if str(port_mapping['published']).isdigit():
-                        host_port = int(port_mapping['published'])
+            else:
+                # Short syntax "HOST:CONTAINER"
+                try:
+                    host_port_str = str(port_mapping).split(":")[0]
+                    if host_port_str.isdigit():
+                        host_port = int(host_port_str)
                         if service_name not in service_ports:
                             service_ports[service_name] = host_port
-                            break
+                            break  # Use the first port found for a service
+                except (ValueError, IndexError):
+                    pass
     return service_ports
 
 

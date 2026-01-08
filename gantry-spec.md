@@ -299,15 +299,15 @@ gantry ports --all           # Show ports for all projects
   - [x] Handle edge cases (removed docker-compose.yml, invalid paths)
   
 #### 1.6
-- [ ] Write tests:
-  - [ ] Registry CRUD operations
-  - [ ] Port allocation logic
-  - [ ] Port detection from docker-compose.yml (various formats)
-  - [ ] Port conflict detection (multiple projects, same ports)
-  - [ ] CLI command parsing
-  - [ ] `update` command: detect changes, generate diff, apply updates
-  - [ ] `update` command: handle removed docker-compose.yml
-  - [ ] `update` command: port conflict detection during update
+- [x] Write tests:
+  - [x] Registry CRUD operations
+  - [x] Port allocation logic
+  - [x] Port detection from docker-compose.yml (various formats)
+  - [x] Port conflict detection (multiple projects, same ports)
+  - [x] CLI command parsing
+  - [x] `update` command: detect changes, generate diff, apply updates
+  - [x] `update` command: handle removed docker-compose.yml
+  - [x] `update` command: port conflict detection during update
 
 #### 1.7
 - [ ] Update dependencies in `pyproject.toml`:

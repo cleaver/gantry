@@ -82,28 +82,24 @@ class PortAllocator:
                 continue
 
             for port_mapping in ports:
-                try:
-                    # Short syntax "HOST:CONTAINER"
-                    host_port_str = str(port_mapping).split(":")[0]
-                    if host_port_str.isdigit():
-                        host_port = int(host_port_str)
+                # Check for long syntax first (dict with 'published' field)
+                if isinstance(port_mapping, dict) and 'published' in port_mapping:
+                    if str(port_mapping['published']).isdigit():
+                        host_port = int(port_mapping['published'])
                         # Take the first valid port mapping for the service
                         if service_name not in service_ports:
                             service_ports[service_name] = host_port
-                except (ValueError, IndexError):
-                    # Long syntax would need more complex parsing, skipping for now
-                    # as short syntax is most common for simple host exposure.
-                    # Example:
-                    # ports:
-                    #  - target: 80
-                    #    published: 8080
-                    #    protocol: tcp
-                    #    mode: host
-                    if isinstance(port_mapping, dict) and 'published' in port_mapping:
-                        if str(port_mapping['published']).isdigit():
-                             host_port = int(port_mapping['published'])
-                             if service_name not in service_ports:
-                                 service_ports[service_name] = host_port
+                else:
+                    # Short syntax "HOST:CONTAINER"
+                    try:
+                        host_port_str = str(port_mapping).split(":")[0]
+                        if host_port_str.isdigit():
+                            host_port = int(host_port_str)
+                            # Take the first valid port mapping for the service
+                            if service_name not in service_ports:
+                                service_ports[service_name] = host_port
+                    except (ValueError, IndexError):
+                        pass
 
         return service_ports
 
