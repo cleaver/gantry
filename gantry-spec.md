@@ -310,17 +310,17 @@ gantry ports --all           # Show ports for all projects
   - [x] `update` command: port conflict detection during update
 
 #### 1.7
-- [ ] Update dependencies in `pyproject.toml`:
-  - [ ] `typer`
-  - [ ] `rich` (for tables/colors)
-  - [ ] `pydantic` (for validation)
+- [x] Update dependencies in `pyproject.toml`:
+  - [x] `typer`
+  - [x] `rich` (for tables/colors)
+  - [x] `pydantic` (for validation)
 
 #### 1.8
-- [ ] Documentation:
-  - [ ] Usage examples for `register`/`list`/`status`/`update`
-  - [ ] Port conflict detection and resolution
-  - [ ] How service ports are detected from docker-compose.yml
-  - [ ] `update` command usage: when to use, what it detects, how to handle conflicts
+- [x] Documentation:
+  - [x] Usage examples for `register`/`list`/`status`/`update`
+  - [x] Port conflict detection and resolution
+  - [x] How service ports are detected from docker-compose.yml
+  - [x] `update` command usage: when to use, what it detects, how to handle conflicts
 
 ---
 
