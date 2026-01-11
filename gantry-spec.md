@@ -378,16 +378,16 @@ gantry ports --all           # Show ports for all projects
 ### Phase 2 Checklist
 
 #### 2.1
-- [ ] Implement `process_manager.py`:
-  - [ ] `start_project()` with Docker Compose support
-  - [ ] Port conflict checking before startup (call `port_allocator.validate_startup_ports()`)
-  - [ ] `check_startup_conflicts()` to generate conflict reports
-  - [ ] `stop_project()` with graceful shutdown timeout
-  - [ ] `restart_project()`
-  - [ ] `get_status()` via PID validation
-  - [ ] `get_logs()` via `docker compose logs`
-  - [ ] Health check via HTTP GET + retry logic
-  - [ ] Error handling (service already running, port in use, port conflicts, etc.)
+- [x] Implement `process_manager.py`:
+  - [x] `start_project()` with Docker Compose support
+  - [x] Port conflict checking before startup (call `port_allocator.validate_startup_ports()`)
+  - [x] `check_startup_conflicts()` to generate conflict reports
+  - [x] `stop_project()` with graceful shutdown timeout
+  - [x] `restart_project()`
+  - [x] `get_status()` via PID validation
+  - [x] `get_logs()` via `docker compose logs`
+  - [x] Health check via HTTP GET + retry logic
+  - [x] Error handling (service already running, port in use, port conflicts, etc.)
 
 #### 2.2
 - [ ] Implement `orchestrator.py`:
