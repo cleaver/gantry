@@ -405,23 +405,23 @@ gantry ports --all           # Show ports for all projects
   - [x] Implement `update_project_metadata()` method for atomic updates
 
 #### 2.4
-- [ ] Extend `cli.py`:
-  - [ ] `start <hostname>` command (with conflict checking)
-  - [ ] `stop <hostname>` command
-  - [ ] `restart <hostname>` command
-  - [ ] `stop-all` command
-  - [ ] `logs <hostname> [--follow] [--service <name>]` command
-  - [ ] `health-check <hostname>` command
-  - [ ] `ports <hostname>` command (show all ports for a project)
-  - [ ] `ports --all` command (show ports for all projects)
-  - [ ] `update <hostname>` command implementation:
-    - [ ] Call `detectors.rescan_project()` to detect changes
-    - [ ] Generate and display diff/changelog
-    - [ ] Check for port conflicts with running projects
-    - [ ] Warn if project is currently running
-    - [ ] Support `--dry-run`, `--yes` flags
-    - [ ] Apply updates via `registry.update_project_metadata()`
-    - [ ] Update Caddy routing if configured (Phase 4)
+- [x] Extend `cli.py`:
+  - [x] `start <hostname>` command (with conflict checking)
+  - [x] `stop <hostname>` command
+  - [x] `restart <hostname>` command
+  - [x] `stop-all` command
+  - [x] `logs <hostname> [--follow] [--service <name>]` command
+  - [x] `health-check <hostname>` command
+  - [x] `ports <hostname>` command (show all ports for a project)
+  - [x] `ports --all` command (show ports for all projects)
+  - [x] `update <hostname>` command implementation:
+    - [x] Call `detectors.rescan_project()` to detect changes
+    - [x] Generate and display diff/changelog
+    - [x] Check for port conflicts with running projects
+    - [x] Warn if project is currently running
+    - [x] Support `--dry-run`, `--yes` flags
+    - [x] Apply updates via `registry.update_project_metadata()`
+    - [x] Update Caddy routing if configured (Phase 4)
 
 #### 2.5
 - [ ] Update `process_manager.py`:
