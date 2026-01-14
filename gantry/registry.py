@@ -24,6 +24,7 @@ class Project(BaseModel):
     last_started: Optional[datetime] = None
     last_updated: datetime
     status: Literal["running", "stopped", "error"] = "stopped"
+    last_status_change: Optional[datetime] = None
 
 
 class RegistryData(BaseModel):
@@ -142,6 +143,10 @@ class Registry:
         # Create a dictionary from the existing model to apply updates
         updated_data = project.model_dump()
         updated_data.update(updates)
+
+        # If status is being updated and it's different from current, set last_status_change
+        if "status" in updates and updates["status"] != project.status:
+            updated_data["last_status_change"] = datetime.now(timezone.utc)
 
         # Always set the last_updated timestamp on any modification
         updated_data["last_updated"] = datetime.now(timezone.utc)

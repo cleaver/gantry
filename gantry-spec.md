@@ -395,14 +395,14 @@ gantry ports --all           # Show ports for all projects
   - [x] Status aggregation
 
 #### 2.3
-- [ ] Extend `registry.py`:
-  - [ ] Add `last_status_change` timestamp
-  - [ ] Persist PID on start
-  - [ ] Add `service_ports` and `exposed_ports` fields to metadata
-  - [ ] Add `last_updated` timestamp field
-  - [ ] Implement `get_running_projects()` method
-  - [ ] Implement `update_service_ports()` method
-  - [ ] Implement `update_project_metadata()` method for atomic updates
+- [x] Extend `registry.py`:
+  - [x] Add `last_status_change` timestamp
+  - [x] Persist PID on start (Note: PIDs are persisted by `process_manager.py` in `state.json`, not directly in `registry.py`)
+  - [x] Add `service_ports` and `exposed_ports` fields to metadata
+  - [x] Add `last_updated` timestamp field
+  - [x] Implement `get_running_projects()` method
+  - [x] Implement `update_service_ports()` method
+  - [x] Implement `update_project_metadata()` method for atomic updates
 
 #### 2.4
 - [ ] Extend `cli.py`:
