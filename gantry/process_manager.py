@@ -12,7 +12,7 @@ from urllib.request import urlopen
 
 import psutil
 
-from .port_allocator import PortAllocator, PortConflictError
+from .port_allocator import MIN_PORT, MAX_PORT, PortAllocator, PortConflictError
 from .registry import GANTRY_HOME, Project, Registry
 
 
@@ -218,22 +218,35 @@ class ProcessManager:
             self._registry.update_project_status(hostname, "error")
             return "error"
     
-    def start_project(self, hostname: str, force: bool = False):
+    def start_project(
+        self, hostname: str, force: bool = False, port: Optional[int] = None
+    ):
         """
         Start a Docker Compose project.
         
         Args:
             hostname: Project hostname
             force: If True, proceed even with port conflicts (with warning)
+            port: If provided, set as the main HTTP port for the project
         
         Raises:
             ServiceAlreadyRunningError: If project is already running
             PortConflictError: If port conflicts detected and force=False
             DockerComposeNotFoundError: If docker-compose.yml not found
+            ValueError: If provided port is invalid
         """
         project = self._registry.get_project(hostname)
         if not project:
             raise ValueError(f"Project '{hostname}' not found.")
+
+        if port is not None:
+            if not (MIN_PORT <= port <= MAX_PORT):
+                raise ValueError(
+                    f"Port {port} is outside the allowed range ({MIN_PORT}-{MAX_PORT})."
+                )
+            if port != project.port:
+                self._registry.update_project_metadata(hostname, port=port)
+                project = self._registry.get_project(hostname)
         
         # Check if already running
         current_status = self.get_status(hostname)

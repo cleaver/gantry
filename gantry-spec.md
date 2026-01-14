@@ -424,9 +424,9 @@ gantry ports --all           # Show ports for all projects
     - [x] Update Caddy routing if configured (Phase 4)
 
 #### 2.5
-- [ ] Update `process_manager.py`:
-  - [ ] Add `port` parameter to start command (for reverse proxy)
-  - [ ] Validate port is in allowed range
+- [x] Update `process_manager.py`:
+  - [x] Add `port` parameter to start command (for reverse proxy)
+  - [x] Validate port is in allowed range
 
 #### 2.6
 - [ ] Tests:
