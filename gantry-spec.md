@@ -390,9 +390,9 @@ gantry ports --all           # Show ports for all projects
   - [x] Error handling (service already running, port in use, port conflicts, etc.)
 
 #### 2.2
-- [ ] Implement `orchestrator.py`:
-  - [ ] `stop_all()`
-  - [ ] Status aggregation
+- [x] Implement `orchestrator.py`:
+  - [x] `stop_all()`
+  - [x] Status aggregation
 
 #### 2.3
 - [ ] Extend `registry.py`:
