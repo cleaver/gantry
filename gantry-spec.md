@@ -510,8 +510,8 @@ Domains=~test
   - [x] Error handling for DNS setup failures
 
 #### 3.2
-- [ ] Implement `dns_templates.py`:
-  - [ ] Template strings for dnsmasq config
+- [x] Implement `dns_templates.py`:
+  - [x] Template strings for dnsmasq config
 
 #### 3.3
 - [ ] Extend `cli.py`:
