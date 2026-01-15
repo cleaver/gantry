@@ -525,9 +525,9 @@ Domains=~test
   - [x] Track DNS registration state
 
 #### 3.5
-- [ ] Integration with `register` command:
-  - [ ] Auto-register DNS on project registration
-  - [ ] Prompt user for sudo password if needed
+- [x] Integration with `register` command:
+  - [x] Auto-register DNS on project registration
+  - [x] Prompt user for sudo password if needed
 
 #### 3.6
 - [ ] Tests:

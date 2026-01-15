@@ -67,26 +67,36 @@ def register(
 
     try:
         console.print(f"Registering project at '{path}' with hostname '{hostname}'...")
-        # Basic registration, more complex logic will be added later.
         http_port = port_allocator.allocate_port()
         project = registry.register_project(hostname=hostname, path=path, port=http_port)
         
-        # Add the allocated http port to the exposed ports
         registry.update_project_metadata(hostname, exposed_ports=[http_port])
 
-        # Track DNS registration state
+        console.print(f"[green]✔ Project '{hostname}' registered successfully![/green]")
+        console.print(f"  - Assigned Port: {project.port}")
+
+        # Check and set up DNS
         try:
             dns_status = dns_manager.get_dns_status()
             if dns_status.get("dns_configured"):
                 registry.update_project_metadata(hostname, dns_registered=True)
-        except DNSBackendNotFoundError:
-            # dnsmasq is not installed, so DNS cannot be configured.
-            # The dns_registered flag will remain False.
-            pass
+                console.print(f"  - Access URL: http://{hostname}.test")
+            else:
+                console.print(f"[yellow]DNS for .test domains is not configured.[/yellow]")
+                if typer.confirm("Do you want to configure it now? (requires sudo)"):
+                    dns_setup()
+                    registry.update_project_metadata(hostname, dns_registered=True)
+                    console.print(f"  - Access URL: http://{hostname}.test")
+                else:
+                    console.print(f"  - Access URL: http://localhost:{project.port}")
+                    console.print("    (Run 'gantry dns-setup' later to enable .test domains)")
 
-        console.print(f"[green]✔ Project '{hostname}' registered successfully![/green]")
-        console.print(f"  - Assigned Port: {project.port}")
-        console.print(f"  - Access URL: http://{hostname}.test (after DNS setup)")
+        except DNSBackendNotFoundError:
+             install_cmd = dns_manager.get_install_command()
+             console.print("[yellow]DNS feature not available: dnsmasq is not installed.[/yellow]")
+             if install_cmd:
+                console.print(f"  Install it with: [bold]{install_cmd}[/bold]")
+             console.print(f"  - Access URL: http://localhost:{project.port}")
 
     except (ValueError, RuntimeError) as e:
         console.print(f"[red]Error: {e}[/red]")
