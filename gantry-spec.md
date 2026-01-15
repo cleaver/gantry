@@ -514,10 +514,10 @@ Domains=~test
   - [x] Template strings for dnsmasq config
 
 #### 3.3
-- [ ] Extend `cli.py`:
-  - [ ] `dns-setup` command (one-time setup)
-  - [ ] `dns-status` command (show current config)
-  - [ ] `dns-test <hostname>` command
+- [x] Extend `cli.py`:
+  - [x] `dns-setup` command (one-time setup)
+  - [x] `dns-status` command (show current config)
+  - [x] `dns-test <hostname>` command
 
 #### 3.4
 - [ ] Extend `registry.py` and project registration:

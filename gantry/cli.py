@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -6,6 +7,13 @@ from rich.console import Console
 from rich.table import Table
 
 from gantry.detectors import detect_services, detect_service_ports, rescan_project
+from gantry.dns_manager import (
+    DNSBackendNotFoundError,
+    DNSConfigError,
+    DNSManager,
+    DNSTestError,
+    DNSMASQ_CONFIG_DIR,
+)
 from gantry.orchestrator import Orchestrator
 from gantry.port_allocator import PortAllocator, PortConflictError
 from gantry.process_manager import (
@@ -25,6 +33,7 @@ registry = Registry()
 port_allocator = PortAllocator(registry)
 process_manager = ProcessManager(registry, port_allocator)
 orchestrator = Orchestrator(registry, process_manager)
+dns_manager = DNSManager()
 
 
 def get_status_color(status: str) -> str:
@@ -551,6 +560,93 @@ def update(
 
     except ValueError as e:
         console.print(f"[red]Error updating project: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# --- DNS Commands ---
+dns_app = typer.Typer(help="Manage DNS configuration for .test domains.")
+app.add_typer(dns_app, name="dns")
+
+
+@dns_app.command("setup")
+def dns_setup():
+    """One-time setup for DNS resolution."""
+    console.print("Configuring DNS for .test domains...")
+
+    # Check if dnsmasq is installed
+    if not dns_manager.check_dnsmasq_installed():
+        install_cmd = dns_manager.get_install_command()
+        console.print("[red]dnsmasq is not installed.[/red]")
+        if install_cmd:
+            console.print(f"Please install it using: [bold]{install_cmd}[/bold]")
+        else:
+            console.print("Please install dnsmasq using your system's package manager.")
+        raise typer.Exit(1)
+
+    # Check if we need sudo
+    if not os.access(DNSMASQ_CONFIG_DIR, os.W_OK):
+        console.print("[yellow]Sudo privileges are required to write DNS configuration.[/yellow]")
+        if not typer.confirm("Do you want to proceed?", default=True):
+            console.print("DNS setup cancelled.")
+            raise typer.Exit(0)
+
+    try:
+        dns_manager.setup_dns()
+        console.print("[green]✔ DNS configured successfully![/green]")
+        console.print("  - All *.test domains will now resolve to 127.0.0.1.")
+        console.print("You may need to restart your browser for changes to take effect.")
+    except (DNSBackendNotFoundError, DNSConfigError) as e:
+        console.print(f"[red]Error setting up DNS: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@dns_app.command("status")
+def dns_status():
+    """Show the current DNS configuration status."""
+    try:
+        status = dns_manager.get_dns_status()
+        
+        table = Table("DNS Feature", "Status")
+        
+        backend_status = f"[green]{status['backend']}[/green]" if status['backend'] else "[red]Not Found[/red]"
+        table.add_row("DNS Backend (dnsmasq)", backend_status)
+        
+        config_status = "[green]Configured[/green]" if status['dns_configured'] else "[red]Not Configured[/red]"
+        table.add_row("Gantry DNS Config", config_status)
+        
+        if status['config_exists']:
+            table.add_row("Config File Path", str(status['config_file']))
+        
+        console.print(table)
+
+    except DNSBackendNotFoundError:
+        console.print("[yellow]dnsmasq is not installed. DNS features are disabled.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]An unexpected error occurred: {e}[/red]")
+        
+
+@dns_app.command("test")
+def dns_test(
+    hostname: str = typer.Argument("example", help="The hostname to test (e.g., 'my-app').")
+):
+    """Test DNS resolution for a given hostname."""
+    test_domain = f"{hostname}.test"
+    console.print(f"Testing DNS resolution for [bold]{test_domain}[/bold]...")
+
+    try:
+        if dns_manager.test_dns(hostname):
+            console.print(f"[green]✔ Success![/green] '{test_domain}' resolves to 127.0.0.1.")
+        else:
+            # This case should be caught by the exception but is here for safety
+            console.print(f"[red]✗ Failure.[/red] Unexpected result for '{test_domain}'.")
+            raise typer.Exit(1)
+            
+    except DNSTestError as e:
+        console.print(f"[red]✗ DNS resolution failed: {e}[/red]")
+        console.print("\n[bold]Troubleshooting steps:[/bold]")
+        console.print("1. Ensure you have run [bold]gantry dns-setup[/bold].")
+        console.print("2. Check your system's DNS settings to ensure '127.0.0.1' is listed as a resolver.")
+        console.print("3. Restart your browser or system.")
         raise typer.Exit(1)
 
 
