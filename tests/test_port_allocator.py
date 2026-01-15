@@ -112,6 +112,7 @@ class TestAllocatePort:
         assert allocated not in unavailable_ports
         assert 5000 <= allocated < 6000
     
+    @pytest.mark.slow
     def test_allocate_raises_error_when_no_ports_available(self, port_allocator, mock_registry, tmp_path):
         """Test that allocate_port() raises RuntimeError when no ports available."""
         # Fill up all ports in range

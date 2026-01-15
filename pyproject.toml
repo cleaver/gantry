@@ -32,3 +32,8 @@ gantry = "gantry.cli:app"
 [project.urls]
 Homepage = "https://github.com/cleaver/gantry"
 Repository = "https://github.com/cleaver/gantry"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

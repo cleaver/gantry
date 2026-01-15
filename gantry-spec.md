@@ -530,10 +530,10 @@ Domains=~test
   - [x] Prompt user for sudo password if needed
 
 #### 3.6
-- [ ] Tests:
-  - [ ] Mock DNS system calls
-  - [ ] Test dnsmasq config generation
-  - [ ] Test DNS resolution verification
+- [x] Tests:
+  - [x] Mock DNS system calls
+  - [x] Test dnsmasq config generation
+  - [x] Test DNS resolution verification
 
 #### 3.7
 - [ ] Documentation:

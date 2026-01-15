@@ -19,12 +19,15 @@ def mock_registry_and_allocator(monkeypatch, tmp_gantry_home):
     """Mock the global registry and port_allocator instances."""
     from gantry.registry import Registry
     from gantry.port_allocator import PortAllocator
+    from gantry.dns_manager import DNSManager
     
     registry = Registry()
     port_allocator = PortAllocator(registry)
+    dns_manager = DNSManager()
     
     monkeypatch.setattr("gantry.cli.registry", registry)
     monkeypatch.setattr("gantry.cli.port_allocator", port_allocator)
+    monkeypatch.setattr("gantry.cli.dns_manager", dns_manager)
     
     return registry, port_allocator
 
@@ -32,11 +35,22 @@ def mock_registry_and_allocator(monkeypatch, tmp_gantry_home):
 class TestRegisterCommand:
     """Test register command."""
     
-    def test_register_with_flags(self, cli_runner, mock_registry_and_allocator, tmp_path):
+    def test_register_with_flags(self, cli_runner, mock_registry_and_allocator, tmp_path, monkeypatch):
         """Test registering with --hostname and --path flags."""
         registry, port_allocator = mock_registry_and_allocator
         project_path = tmp_path / "myproject"
         project_path.mkdir()
+        
+        # Mock DNS manager to avoid accessing system files
+        from gantry.cli import dns_manager
+        mock_dns_status = MagicMock(return_value={
+            "dnsmasq_installed": False,
+            "dns_configured": False,
+            "config_file": "/etc/dnsmasq.d/gantry.conf",
+            "config_exists": False,
+            "backend": None,
+        })
+        monkeypatch.setattr(dns_manager, "get_dns_status", mock_dns_status)
         
         # Mock port allocation
         with patch.object(port_allocator, "allocate_port", return_value=5001):
@@ -59,6 +73,17 @@ class TestRegisterCommand:
         registry, port_allocator = mock_registry_and_allocator
         project_path = tmp_path / "myproject"
         project_path.mkdir()
+        
+        # Mock DNS manager to avoid accessing system files
+        from gantry.cli import dns_manager
+        mock_dns_status = MagicMock(return_value={
+            "dnsmasq_installed": False,
+            "dns_configured": False,
+            "config_file": "/etc/dnsmasq.d/gantry.conf",
+            "config_exists": False,
+            "backend": None,
+        })
+        monkeypatch.setattr(dns_manager, "get_dns_status", mock_dns_status)
         
         # Mock typer.prompt to return hostname
         mock_prompt = MagicMock(return_value="myproject")
@@ -110,11 +135,22 @@ class TestRegisterCommand:
         # Typer should validate path and exit with error
         assert result.exit_code != 0
     
-    def test_register_output_messages(self, cli_runner, mock_registry_and_allocator, tmp_path):
+    def test_register_output_messages(self, cli_runner, mock_registry_and_allocator, tmp_path, monkeypatch):
         """Test that register command outputs correct messages."""
         registry, port_allocator = mock_registry_and_allocator
         project_path = tmp_path / "myproject"
         project_path.mkdir()
+        
+        # Mock DNS manager to avoid accessing system files
+        from gantry.cli import dns_manager
+        mock_dns_status = MagicMock(return_value={
+            "dnsmasq_installed": False,
+            "dns_configured": False,
+            "config_file": "/etc/dnsmasq.d/gantry.conf",
+            "config_exists": False,
+            "backend": None,
+        })
+        monkeypatch.setattr(dns_manager, "get_dns_status", mock_dns_status)
         
         with patch.object(port_allocator, "allocate_port", return_value=5001):
             result = cli_runner.invoke(

@@ -361,10 +361,19 @@ address=/.test/127.0.0.1
         Returns:
             Dictionary with status information
         """
+        dnsmasq_installed = self._is_dnsmasq_installed()
+        dns_configured = self._is_dns_configured()
+        backend = None
+        if dnsmasq_installed:
+            try:
+                backend = self.detect_dns_backend()
+            except DNSBackendNotFoundError:
+                # If dnsmasq check passed but detect fails, backend is None
+                pass
         return {
-            "dnsmasq_installed": self._is_dnsmasq_installed(),
-            "dns_configured": self._is_dns_configured(),
+            "dnsmasq_installed": dnsmasq_installed,
+            "dns_configured": dns_configured,
             "config_file": str(GANTRY_DNS_CONFIG),
             "config_exists": GANTRY_DNS_CONFIG.exists(),
-            "backend": self.detect_dns_backend() if self._is_dnsmasq_installed() else None,
+            "backend": backend,
         }

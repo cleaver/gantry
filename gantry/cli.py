@@ -92,11 +92,15 @@ def register(
                     console.print("    (Run 'gantry dns-setup' later to enable .test domains)")
 
         except DNSBackendNotFoundError:
-             install_cmd = dns_manager.get_install_command()
-             console.print("[yellow]DNS feature not available: dnsmasq is not installed.[/yellow]")
-             if install_cmd:
+            install_cmd = dns_manager.get_install_command()
+            console.print("[yellow]DNS feature not available: dnsmasq is not installed.[/yellow]")
+            if install_cmd:
                 console.print(f"  Install it with: [bold]{install_cmd}[/bold]")
-             console.print(f"  - Access URL: http://localhost:{project.port}")
+            console.print(f"  - Access URL: http://localhost:{project.port}")
+        except Exception as e:
+            # Don't fail registration if DNS check fails
+            console.print(f"[yellow]Warning: Could not check DNS status: {e}[/yellow]")
+            console.print(f"  - Access URL: http://localhost:{project.port}")
 
     except (ValueError, RuntimeError) as e:
         console.print(f"[red]Error: {e}[/red]")
