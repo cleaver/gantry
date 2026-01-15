@@ -25,6 +25,7 @@ class Project(BaseModel):
     last_updated: datetime
     status: Literal["running", "stopped", "error"] = "stopped"
     last_status_change: Optional[datetime] = None
+    dns_registered: bool = False
 
 
 class RegistryData(BaseModel):

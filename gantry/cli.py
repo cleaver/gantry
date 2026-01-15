@@ -74,6 +74,16 @@ def register(
         # Add the allocated http port to the exposed ports
         registry.update_project_metadata(hostname, exposed_ports=[http_port])
 
+        # Track DNS registration state
+        try:
+            dns_status = dns_manager.get_dns_status()
+            if dns_status.get("dns_configured"):
+                registry.update_project_metadata(hostname, dns_registered=True)
+        except DNSBackendNotFoundError:
+            # dnsmasq is not installed, so DNS cannot be configured.
+            # The dns_registered flag will remain False.
+            pass
+
         console.print(f"[green]✔ Project '{hostname}' registered successfully![/green]")
         console.print(f"  - Assigned Port: {project.port}")
         console.print(f"  - Access URL: http://{hostname}.test (after DNS setup)")

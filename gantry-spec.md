@@ -520,9 +520,9 @@ Domains=~test
   - [x] `dns-test <hostname>` command
 
 #### 3.4
-- [ ] Extend `registry.py` and project registration:
-  - [ ] Add `dns_registered` boolean to project metadata
-  - [ ] Track DNS registration state
+- [x] Extend `registry.py` and project registration:
+  - [x] Add `dns_registered` boolean to project metadata
+  - [x] Track DNS registration state
 
 #### 3.5
 - [ ] Integration with `register` command:
