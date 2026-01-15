@@ -20,7 +20,9 @@ class Conflict(TypedDict):
     service: str
 
 
-HTTP_PORT_RANGE = range(5000, 6000)
+MIN_PORT = 5000
+MAX_PORT = 5999
+HTTP_PORT_RANGE = range(MIN_PORT, MAX_PORT + 1)
 
 
 class PortAllocator:
