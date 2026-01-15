@@ -429,10 +429,10 @@ gantry ports --all           # Show ports for all projects
   - [x] Validate port is in allowed range
 
 #### 2.6
-- [ ] Tests:
-  - [ ] Mock subprocess calls
-  - [ ] Test start/stop lifecycle
-  - [ ] Test health check logic
+- [x] Tests:
+  - [x] Mock subprocess calls
+  - [x] Test start/stop lifecycle
+  - [x] Test health check logic
 
 #### 2.7
 - [ ] Documentation:
