@@ -1,7 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "gantry"
 version = "0.1.0"
 description = "Local development environment manager"
+readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "typer>=0.9",
@@ -23,3 +28,7 @@ dev = [
 
 [project.scripts]
 gantry = "gantry.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/cleaver/gantry"
+Repository = "https://github.com/cleaver/gantry"
