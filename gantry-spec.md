@@ -501,13 +501,13 @@ Domains=~test
 ### Phase 3 Checklist
 
 #### 3.1
-- [ ] Implement `dns_manager.py`:
-  - [ ] Detect available DNS backend (dnsmasq)
-  - [ ] Check if dnsmasq installed, offer to install via package manager
-  - [ ] `setup_dns()` with privilege escalation (sudo) handling
-  - [ ] `register_dns(hostname)` to add DNS entry
-  - [ ] `test_dns(hostname)` to verify resolution
-  - [ ] Error handling for DNS setup failures
+- [x] Implement `dns_manager.py`:
+  - [x] Detect available DNS backend (dnsmasq)
+  - [x] Check if dnsmasq installed, offer to install via package manager
+  - [x] `setup_dns()` with privilege escalation (sudo) handling
+  - [x] `register_dns(hostname)` to add DNS entry
+  - [x] `test_dns(hostname)` to verify resolution
+  - [x] Error handling for DNS setup failures
 
 #### 3.2
 - [ ] Implement `dns_templates.py`:
