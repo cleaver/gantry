@@ -435,8 +435,8 @@ gantry ports --all           # Show ports for all projects
   - [x] Test health check logic
 
 #### 2.7
-- [ ] Documentation:
-  - [ ] Examples: `gantry start proj1`, `gantry logs proj1 --follow`
+- [x] Documentation:
+  - [x] Examples: `gantry start proj1`, `gantry logs proj1 --follow`
 
 ---
 

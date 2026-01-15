@@ -68,6 +68,46 @@ gantry config myapp
 gantry unregister myapp
 ```
 
+### Process Management
+
+#### Start a Project
+
+Start all services for a project (e.g., Docker Compose):
+
+```bash
+gantry start myapp
+```
+
+Gantry will first check for port conflicts with other running projects. If no conflicts are found, it will start the project's services.
+
+#### Stop a Project
+
+Stop all services for a project:
+
+```bash
+gantry stop myapp
+```
+
+#### View Service Logs
+
+View logs from all services in a project:
+
+```bash
+gantry logs myapp
+```
+
+To follow logs in real-time:
+
+```bash
+gantry logs myapp --follow
+```
+
+To view logs for a specific service:
+
+```bash
+gantry logs myapp --service postgres
+```
+
 ## Usage Examples
 
 ### Register Command
