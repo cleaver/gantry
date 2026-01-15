@@ -437,6 +437,8 @@ Gantry stores project data in `~/.gantry/`:
 
 ## Development
 
+For detailed instructions on using `uv` for development, please see [UV_USAGE.md](UV_USAGE.md).
+
 ### Setup Development Environment
 
 ```bash
