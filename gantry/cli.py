@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from gantry.caddy_manager import CaddyMissingError, install_caddy
 from gantry.detectors import detect_services, detect_service_ports, rescan_project
 from gantry.dns_manager import (
     DNSBackendNotFoundError,
@@ -197,6 +198,12 @@ def start(
         raise typer.Exit(1)
 
     try:
+        # Placeholder for Caddy integration. In a future phase, this would
+        # call `get_caddy_path()` to ensure Caddy is available before starting
+        # the reverse proxy.
+        # from gantry.caddy_manager import get_caddy_path
+        # get_caddy_path()
+
         # Check for conflicts first
         conflicts = process_manager.check_startup_conflicts(hostname)
         if conflicts and not force:
@@ -217,6 +224,9 @@ def start(
             console.print(f"  - Access URL: http://localhost:{project.port}")
             console.print(f"  - Domain: http://{hostname}.test (after DNS setup)")
 
+    except CaddyMissingError:
+        console.print("[red]Caddy is not installed. Please run 'gantry setup install-caddy' to install it.[/red]")
+        raise typer.Exit(1)
     except ServiceAlreadyRunningError:
         console.print(f"[yellow]Project '{hostname}' is already running.[/yellow]")
         raise typer.Exit(0)
@@ -553,7 +563,7 @@ def update(
             services=updated_services,
             service_ports=updated_service_ports,
             exposed_ports=updated_exposed_ports,
-            docker_compose=docker_compose
+docker_compose=docker_compose
         )
 
         # Update Caddy routing if configured (Phase 4)
@@ -584,6 +594,22 @@ def update(
 
     except ValueError as e:
         console.print(f"[red]Error updating project: {e}[/red]")
+        raise typer.Exit(1)
+
+
+# --- Setup Commands ---
+setup_app = typer.Typer(help="Perform one-time setup for Gantry dependencies.")
+app.add_typer(setup_app, name="setup")
+
+
+@setup_app.command("install-caddy")
+def install_caddy_command():
+    """Download and install the Caddy binary."""
+    console.print("Installing Caddy...")
+    try:
+        install_caddy()
+    except Exception as e:
+        console.print(f"[red]Error installing Caddy: {e}[/red]")
         raise typer.Exit(1)
 
 

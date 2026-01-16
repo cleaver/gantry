@@ -666,10 +666,10 @@ adminer.proj2.test {
 ### Phase 4 Checklist
 
 #### 4.1
-- [ ] Install Caddy (download binary or via package manager):
-  - [ ] Check if Caddy installed, offer installation
-  - [ ] Download latest release from github.com/caddyserver/caddy
-  - [ ] Place in `~/.gantry/bin/caddy`
+- [x] Install Caddy (download binary or via package manager):
+  - [x] Check if Caddy installed, offer installation
+  - [x] Download latest release from github.com/caddyserver/caddy
+  - [x] Place in `~/.gantry/bin/caddy`
 
 #### 4.2
 - [ ] Implement `caddy_manager.py`:
