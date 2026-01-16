@@ -72,9 +72,11 @@ def register(
         readable=True,
         resolve_path=True,
     ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Auto-confirm all prompts."
+    )
 ):
     """Register a new project with Gantry."""
-    # This is the non-interactive flow. Interactive flow will be added later.
     if not hostname:
         hostname = typer.prompt("Enter a hostname for the project")
         if not hostname:
@@ -86,12 +88,78 @@ def register(
         http_port = port_allocator.allocate_port()
         project = registry.register_project(hostname=hostname, path=path, port=http_port)
 
-        registry.update_project_metadata(hostname, exposed_ports=[http_port])
+        exposed_ports = [http_port]
+
+        # --- Service Detection ---
+        compose_file = None
+        if (path / "docker-compose.yml").exists():
+            compose_file = path / "docker-compose.yml"
+        elif (path / "docker-compose.yaml").exists():
+            compose_file = path / "docker-compose.yaml"
+
+        if compose_file:
+            console.print("Found docker-compose file. Detecting services and ports...")
+            services = detect_services(compose_file)
+            service_ports = detect_service_ports(compose_file)
+
+            if service_ports:
+                table = Table("Service", "Port")
+                for service, port in service_ports.items():
+                    table.add_row(service, str(port))
+                console.print("Detected the following service ports:")
+                console.print(table)
+
+                if yes or typer.confirm("Do you want to register these services?", default=True):
+                    exposed_ports.extend(service_ports.values())
+                    registry.update_project_metadata(
+                        hostname,
+                        services=services,
+                        service_ports=service_ports,
+                        docker_compose=True
+                    )
+                    console.print("[green]Services registered.[/green]")
+                else:
+                    console.print("[yellow]Skipping service registration.[/yellow]")
+
+        registry.update_project_metadata(hostname, exposed_ports=exposed_ports)
 
         console.print(f"[green]✔ Project '{hostname}' registered successfully![/green]")
-        console.print(f"  - Assigned Port: {project.port}")
+        console.print(f"  - Assigned HTTP Port: {project.port}")
 
-        # Check and set up DNS
+        # --- Caddy and Certificate Integration ---
+        console.print("\nConfiguring reverse proxy and TLS certificate...")
+        try:
+            # Ensure CA is set up
+            if not cert_manager.get_ca_status().get("installed"):
+                console.print("Local Certificate Authority not found. Setting it up now...")
+                if not cert_manager.setup_ca():
+                     console.print("[yellow]Warning: Could not set up local CA. HTTPS URLs may not work.[/yellow]")
+
+            # Generate wildcard certificate
+            console.print("Ensuring wildcard certificate for *.test exists...")
+            if not cert_manager.generate_cert(["*.test", "localhost"]):
+                console.print("[yellow]Warning: Could not generate wildcard certificate.[/yellow]")
+            else:
+                registry.update_project_metadata(hostname, cert_installed=True)
+
+            # Generate Caddyfile and reload Caddy
+            caddy_manager = CaddyManager(registry)
+            caddy_manager.generate_caddyfile()
+            registry.update_project_metadata(hostname, caddy_configured=True)
+            console.print("✔ Caddyfile generated.")
+
+            try:
+                caddy_manager.reload_caddy()
+                console.print("✔ Caddy configuration reloaded.")
+            except CaddyCommandError:
+                console.print("[yellow]Caddy is not running. Run 'gantry caddy start' to enable reverse proxy.[/yellow]")
+
+        except (CaddyMissingError, FileNotFoundError):
+            console.print("[yellow]Caddy or mkcert not found. Run 'gantry setup all' to install them.[/yellow]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not configure Caddy/TLS: {e}[/yellow]")
+
+        # --- DNS Integration ---
         try:
             dns_status = dns_manager.get_dns_status()
             if dns_status.get("dns_configured"):
@@ -99,7 +167,7 @@ def register(
                 console.print(f"  - Access URL: https://{hostname}.test")
             else:
                 console.print(f"[yellow]DNS for .test domains is not configured.[/yellow]")
-                if typer.confirm("Do you want to configure it now? (requires sudo)"):
+                if yes or typer.confirm("Do you want to configure it now? (requires sudo)"):
                     dns_setup()
                     registry.update_project_metadata(hostname, dns_registered=True)
                     console.print(f"  - Access URL: https://{hostname}.test")

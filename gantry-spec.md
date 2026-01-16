@@ -716,15 +716,15 @@ adminer.proj2.test {
   - [x] Add `cert_installed` boolean
 
 #### 4.7
-- [ ] Integration in `register` command:
-  - [ ] Parse docker-compose.yml for services
-  - [ ] Prompt for service ports
-  - [ ] Auto-generate Caddyfile on registration
-  - [ ] Generate certs on registration
-- [ ] Integration in `update` command:
-  - [ ] If service ports changed, regenerate Caddyfile
-  - [ ] Reload Caddy configuration after update (if Caddy running)
-  - [ ] Warn if project is running (routing changes need restart)
+- [x] Integration in `register` command:
+  - [x] Parse docker-compose.yml for services
+  - [x] Prompt for service ports
+  - [x] Auto-generate Caddyfile on registration
+  - [x] Generate certs on registration
+- [x] Integration in `update` command:
+  - [x] If service ports changed, regenerate Caddyfile
+  - [x] Reload Caddy configuration after update (if Caddy running)
+  - [x] Warn if project is running (routing changes need restart)
 
 #### 4.8
 - [ ] Tests:
