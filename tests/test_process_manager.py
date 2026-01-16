@@ -65,6 +65,8 @@ def registered_project(mock_registry: Registry, sample_project_path: Path):
 class TestSubprocessMocking:
     """Test subprocess call mocking for various scenarios."""
 
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     @patch("gantry.process_manager.ProcessManager.get_status", return_value="stopped")
     @patch("gantry.process_manager.subprocess.run")
     @patch("gantry.process_manager.ProcessManager._get_docker_compose_pids")
@@ -75,6 +77,8 @@ class TestSubprocessMocking:
         mock_get_pids,
         mock_subprocess_run,
         mock_get_status,
+        mock_load_state,
+        mock_save_state,
         process_manager: ProcessManager,
         registered_project,
         mock_registry: Registry,
@@ -355,6 +359,8 @@ class TestSubprocessMocking:
 class TestStartProject:
     """Tests for the start_project method."""
 
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     @patch("gantry.process_manager.ProcessManager.get_status", return_value="stopped")
     @patch("gantry.process_manager.subprocess.run")
     @patch("gantry.process_manager.ProcessManager._get_docker_compose_pids")
@@ -365,6 +371,8 @@ class TestStartProject:
         mock_get_pids,
         mock_subprocess_run,
         mock_get_status,
+        mock_load_state,
+        mock_save_state,
         process_manager: ProcessManager,
         registered_project,
         mock_registry: Registry,
@@ -416,6 +424,8 @@ class TestStartProject:
             with pytest.raises(PortConflictError):
                 process_manager.start_project("test-project")
 
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     @patch("gantry.process_manager.logging.warning")
     @patch("gantry.process_manager.subprocess.run")
     @patch("gantry.process_manager.ProcessManager.get_status", return_value="stopped")
@@ -428,6 +438,8 @@ class TestStartProject:
         mock_get_status,
         mock_subprocess_run,
         mock_log_warning,
+        mock_load_state,
+        mock_save_state,
         process_manager: ProcessManager,
         registered_project,
     ):
@@ -453,6 +465,8 @@ class TestStartProject:
 
         mock_subprocess_run.assert_not_called()
 
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     @patch("gantry.process_manager.subprocess.run")
     @patch("gantry.process_manager.ProcessManager.get_status", return_value="stopped")
     @patch("gantry.process_manager.ProcessManager._get_docker_compose_pids")
@@ -463,6 +477,8 @@ class TestStartProject:
         mock_get_pids,
         mock_get_status,
         mock_subprocess_run,
+        mock_load_state,
+        mock_save_state,
         process_manager: ProcessManager,
         mock_registry: Registry,
         registered_project,
@@ -512,8 +528,13 @@ class TestStartProject:
         process_manager: ProcessManager,
         registered_project,
         tmp_gantry_home,
+        monkeypatch,
     ):
         """Test that start_project saves state with PIDs."""
+        # Also patch GANTRY_HOME in process_manager module since it imports it
+        import gantry.process_manager as pm_module
+        monkeypatch.setattr(pm_module, "GANTRY_HOME", tmp_gantry_home)
+        
         mock_subprocess_run.return_value = MagicMock(returncode=0)
         mock_get_pids.return_value = [123, 456]
 
@@ -825,13 +846,18 @@ class TestHealthCheck:
     """Tests for the health_check method."""
 
     @patch("gantry.process_manager.urlopen")
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     def test_health_check_success_200(
-        self, mock_urlopen, process_manager: ProcessManager, registered_project
+        self, mock_load_state, mock_save_state, mock_urlopen, process_manager: ProcessManager, registered_project
     ):
         """Test a successful health check with 200 status code."""
         mock_response = MagicMock()
         mock_response.getcode.return_value = 200
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = mock_response
+        mock_context.__exit__.return_value = None
+        mock_urlopen.return_value = mock_context
 
         result = process_manager.health_check("test-project")
 
@@ -841,13 +867,18 @@ class TestHealthCheck:
         )
 
     @patch("gantry.process_manager.urlopen")
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     def test_health_check_success_299(
-        self, mock_urlopen, process_manager: ProcessManager, registered_project
+        self, mock_load_state, mock_save_state, mock_urlopen, process_manager: ProcessManager, registered_project
     ):
         """Test a successful health check with 299 status code."""
         mock_response = MagicMock()
         mock_response.getcode.return_value = 299
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = mock_response
+        mock_context.__exit__.return_value = None
+        mock_urlopen.return_value = mock_context
 
         result = process_manager.health_check("test-project")
 
@@ -880,10 +911,14 @@ class TestHealthCheck:
         assert result is False
 
     @patch("gantry.process_manager.urlopen")
+    @patch("gantry.process_manager._save_state")
+    @patch("gantry.process_manager._load_state", return_value={})
     @patch("gantry.process_manager.time.sleep")
     def test_health_check_retry_logic(
         self,
         mock_sleep,
+        mock_load_state,
+        mock_save_state,
         mock_urlopen,
         process_manager: ProcessManager,
         registered_project,
@@ -893,10 +928,13 @@ class TestHealthCheck:
         from urllib.error import URLError
         mock_response_success = MagicMock()
         mock_response_success.getcode.return_value = 200
+        mock_context = MagicMock()
+        mock_context.__enter__.return_value = mock_response_success
+        mock_context.__exit__.return_value = None
         mock_urlopen.side_effect = [
             URLError("Connection failed"),
             URLError("Connection failed"),
-            MagicMock(__enter__=MagicMock(return_value=mock_response_success)),
+            mock_context,
         ]
 
         result = process_manager.health_check("test-project")

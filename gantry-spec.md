@@ -727,11 +727,11 @@ adminer.proj2.test {
   - [x] Warn if project is running (routing changes need restart)
 
 #### 4.8
-- [ ] Tests:
-  - [ ] Mock Caddy subprocess
-  - [ ] Test Caddyfile generation
-  - [ ] Test cert generation
-  - [ ] Test routing rule generation
+- [x] Tests:
+  - [x] Mock Caddy subprocess
+  - [x] Test Caddyfile generation
+  - [x] Test cert generation
+  - [x] Test routing rule generation
 
 #### 4.9
 - [ ] Documentation:
