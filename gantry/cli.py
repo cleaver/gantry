@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from gantry.caddy_manager import CaddyMissingError, install_caddy
+from gantry.caddy_manager import CaddyCommandError, CaddyManager, CaddyMissingError, install_caddy
 from gantry.detectors import detect_services, detect_service_ports, rescan_project
 from gantry.dns_manager import (
     DNSBackendNotFoundError,
@@ -611,6 +611,65 @@ def install_caddy_command():
     except Exception as e:
         console.print(f"[red]Error installing Caddy: {e}[/red]")
         raise typer.Exit(1)
+
+
+# --- Caddy Commands ---
+caddy_app = typer.Typer(help="Manage the Caddy reverse proxy.")
+app.add_typer(caddy_app, name="caddy")
+
+def _get_caddy_manager():
+    try:
+        return CaddyManager(registry)
+    except CaddyMissingError:
+        console.print("[red]Caddy is not installed. Please run 'gantry setup install-caddy' to install it.[/red]")
+        raise typer.Exit(1)
+
+@caddy_app.command("start")
+def caddy_start():
+    """Start the Caddy server."""
+    caddy_manager = _get_caddy_manager()
+    try:
+        console.print("Starting Caddy server...")
+        caddy_manager.start_caddy()
+        console.print("[green]✔ Caddy server started successfully.[/green]")
+    except CaddyCommandError as e:
+        console.print(f"[red]Error starting Caddy: {e}[/red]")
+        console.print("[yellow]It might already be running, or there might be a port conflict (80, 443).[/yellow]")
+        raise typer.Exit(1)
+
+@caddy_app.command("stop")
+def caddy_stop():
+    """Stop the Caddy server."""
+    caddy_manager = _get_caddy_manager()
+    try:
+        console.print("Stopping Caddy server...")
+        caddy_manager.stop_caddy()
+        console.print("[green]✔ Caddy server stopped successfully.[/green]")
+    except CaddyCommandError as e:
+        console.print(f"[red]Error stopping Caddy: {e}[/red]")
+        console.print("[yellow]It might already be stopped.[/yellow]")
+        raise typer.Exit(1)
+
+@caddy_app.command("reload")
+def caddy_reload():
+    """Generate a new Caddyfile and reload the Caddy server."""
+    caddy_manager = _get_caddy_manager()
+    try:
+        console.print("Generating Caddyfile and reloading Caddy...")
+        caddy_manager.reload_caddy()
+        console.print("[green]✔ Caddy configuration reloaded successfully.[/green]")
+    except CaddyCommandError as e:
+        console.print(f"[red]Error reloading Caddy: {e}[/red]")
+        console.print("[yellow]Is the Caddy server running?[/yellow]")
+        raise typer.Exit(1)
+
+@caddy_app.command("generate-config")
+def caddy_generate_config():
+    """Generate the Caddyfile and print it to the console."""
+    caddy_manager = _get_caddy_manager()
+    console.print("[bold]Generated Caddyfile:[/bold]")
+    caddyfile = caddy_manager.generate_caddyfile()
+    console.print(caddyfile)
 
 
 # --- DNS Commands ---

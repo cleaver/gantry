@@ -672,13 +672,13 @@ adminer.proj2.test {
   - [x] Place in `~/.gantry/bin/caddy`
 
 #### 4.2
-- [ ] Implement `caddy_manager.py`:
-  - [ ] Generate Caddyfile from registry
-  - [ ] Template for routing rules
-  - [ ] `start_caddy()` with subprocess
-  - [ ] `stop_caddy()` gracefully
-  - [ ] `reload_caddy()` via `caddy reload` command
-  - [ ] Error handling (port 80/443 already in use)
+- [x] Implement `caddy_manager.py`:
+  - [x] Generate Caddyfile from registry
+  - [x] Template for routing rules
+  - [x] `start_caddy()` with subprocess
+  - [x] `stop_caddy()` gracefully
+  - [x] `reload_caddy()` via `caddy reload` command
+  - [x] Error handling (port 80/443 already in use)
 
 #### 4.3
 - [ ] Implement `cert_manager.py`:
