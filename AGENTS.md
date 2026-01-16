@@ -17,7 +17,14 @@ source .venv/bin/activate
 To run the test suite, use the following command:
 
 ```bash
-uv run pytest -m "not slow"
+uv run --no-cache pytest -m "not slow"
 ```
 
-The `-m` option skips the slow tests which is OK in most cases.
+The `--no-cache` flag avoids cache permission issues, and the `-m` option skips the slow tests which is OK in most cases.
+
+Alternatively, you can activate the virtual environment directly:
+
+```bash
+source .venv/bin/activate
+pytest -m "not slow"
+```
