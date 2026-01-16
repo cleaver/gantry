@@ -510,6 +510,15 @@ If the registry file becomes corrupted:
 
 2. Manually edit `~/.gantry/projects.json` or re-register projects
 
+## Additional Documentation
+
+- **[DNS Setup Guide](DNS_SETUP.md)**: Complete guide to setting up `.test` domain resolution
+- **[Caddy Setup & Certificates](CADDY_SETUP.md)**: Comprehensive guide covering:
+  - Caddy reverse proxy setup
+  - Self-signed certificate management with mkcert
+  - Adding subservices (Adminer, MailHog)
+  - Troubleshooting certificate trust issues
+
 ## Roadmap
 
 See [gantry-spec.md](gantry-spec.md) for the complete development roadmap.

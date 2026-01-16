@@ -734,11 +734,11 @@ adminer.proj2.test {
   - [x] Test routing rule generation
 
 #### 4.9
-- [ ] Documentation:
-  - [ ] Caddy setup instructions
-  - [ ] Self-signed cert explanation
-  - [ ] How to add subservices (Adminer, MailHog)
-  - [ ] Troubleshooting cert trust issues
+- [x] Documentation:
+  - [x] Caddy setup instructions
+  - [x] Self-signed cert explanation
+  - [x] How to add subservices (Adminer, MailHog)
+  - [x] Troubleshooting cert trust issues
 
 ---
 
