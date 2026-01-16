@@ -536,10 +536,10 @@ Domains=~test
   - [x] Test DNS resolution verification
 
 #### 3.7
-- [ ] Documentation:
-  - [ ] Explanation of .test TLD
-  - [ ] One-time setup instructions
-  - [ ] Troubleshooting DNS issues
+- [x] Documentation:
+  - [x] Explanation of .test TLD
+  - [x] One-time setup instructions
+  - [x] Troubleshooting DNS issues
 
 ---
 
