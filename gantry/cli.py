@@ -1,12 +1,18 @@
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from gantry.caddy_manager import CaddyCommandError, CaddyManager, CaddyMissingError, install_caddy
+from gantry.caddy_manager import (
+    CaddyCommandError,
+    CaddyManager,
+    CaddyMissingError,
+    install_caddy,
+)
+from gantry.cert_manager import CertManager
 from gantry.detectors import detect_services, detect_service_ports, rescan_project
 from gantry.dns_manager import (
     DNSBackendNotFoundError,
@@ -35,6 +41,7 @@ port_allocator = PortAllocator(registry)
 process_manager = ProcessManager(registry, port_allocator)
 orchestrator = Orchestrator(registry, process_manager)
 dns_manager = DNSManager()
+cert_manager = CertManager()
 
 
 def get_status_color(status: str) -> str:
@@ -54,8 +61,15 @@ def register(
         None, "--hostname", "-h", help="The hostname for the project (e.g., 'my-app')."
     ),
     path: Path = typer.Option(
-        ".", "--path", "-p", help="The path to the project directory.",
-        exists=True, file_okay=False, dir_okay=True, readable=True, resolve_path=True
+        ".",
+        "--path",
+        "-p",
+        help="The path to the project directory.",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        resolve_path=True,
     ),
 ):
     """Register a new project with Gantry."""
@@ -70,7 +84,7 @@ def register(
         console.print(f"Registering project at '{path}' with hostname '{hostname}'...")
         http_port = port_allocator.allocate_port()
         project = registry.register_project(hostname=hostname, path=path, port=http_port)
-        
+
         registry.update_project_metadata(hostname, exposed_ports=[http_port])
 
         console.print(f"[green]✔ Project '{hostname}' registered successfully![/green]")
@@ -81,20 +95,24 @@ def register(
             dns_status = dns_manager.get_dns_status()
             if dns_status.get("dns_configured"):
                 registry.update_project_metadata(hostname, dns_registered=True)
-                console.print(f"  - Access URL: http://{hostname}.test")
+                console.print(f"  - Access URL: https://{hostname}.test")
             else:
                 console.print(f"[yellow]DNS for .test domains is not configured.[/yellow]")
                 if typer.confirm("Do you want to configure it now? (requires sudo)"):
                     dns_setup()
                     registry.update_project_metadata(hostname, dns_registered=True)
-                    console.print(f"  - Access URL: http://{hostname}.test")
+                    console.print(f"  - Access URL: https://{hostname}.test")
                 else:
                     console.print(f"  - Access URL: http://localhost:{project.port}")
-                    console.print("    (Run 'gantry dns-setup' later to enable .test domains)")
+                    console.print(
+                        "    (Run 'gantry dns-setup' later to enable .test domains)"
+                    )
 
         except DNSBackendNotFoundError:
             install_cmd = dns_manager.get_install_command()
-            console.print("[yellow]DNS feature not available: dnsmasq is not installed.[/yellow]")
+            console.print(
+                "[yellow]DNS feature not available: dnsmasq is not installed.[/yellow]"
+            )
             if install_cmd:
                 console.print(f"  Install it with: [bold]{install_cmd}[/bold]")
             console.print(f"  - Access URL: http://localhost:{project.port}")
@@ -124,14 +142,16 @@ def list_projects():
             project.hostname,
             f"[{color}]{status.capitalize()}[/{color}]",
             str(project.port),
-            str(project.path)
+            str(project.path),
         )
     console.print(table)
 
 
 @app.command()
 def unregister(
-    hostname: str = typer.Argument(..., help="The hostname of the project to unregister.")
+    hostname: str = typer.Argument(
+        ..., help="The hostname of the project to unregister."
+    )
 ):
     """Unregister a project."""
     project = registry.get_project(hostname)
@@ -139,13 +159,15 @@ def unregister(
         console.print(f"[red]Project '{hostname}' not found.[/red]")
         raise typer.Exit(1)
 
-    if project.status == 'running':
-        console.print(f"[yellow]Warning: Project '{hostname}' is currently running.[/yellow]")
+    if project.status == "running":
+        console.print(
+            f"[yellow]Warning: Project '{hostname}' is currently running.[/yellow]"
+        )
 
     if not typer.confirm(f"Are you sure you want to unregister '{hostname}'?"):
         console.print("Unregistration cancelled.")
         raise typer.Exit()
-    
+
     try:
         registry.unregister_project(hostname)
         console.print(f"[green]Project '{hostname}' has been unregistered.[/green]")
@@ -161,15 +183,12 @@ def status():
     if not projects:
         console.print("No projects registered yet.")
         return
-        
+
     table = Table("Hostname", "Status")
     for project in sorted(projects, key=lambda p: p.hostname):
         status = project.status
         color = get_status_color(status)
-        table.add_row(
-            project.hostname,
-            f"[{color}]{status.capitalize()}[/{color}]"
-        )
+        table.add_row(project.hostname, f"[{color}]{status.capitalize()}[/{color}]")
     console.print(table)
 
 
@@ -189,7 +208,9 @@ def config(
 @app.command()
 def start(
     hostname: str = typer.Argument(..., help="The hostname of the project to start."),
-    force: bool = typer.Option(False, "--force", "-f", help="Force start even if port conflicts are detected.")
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force start even if port conflicts are detected."
+    ),
 ):
     """Start a project."""
     project = registry.get_project(hostname)
@@ -198,34 +219,38 @@ def start(
         raise typer.Exit(1)
 
     try:
-        # Placeholder for Caddy integration. In a future phase, this would
-        # call `get_caddy_path()` to ensure Caddy is available before starting
-        # the reverse proxy.
-        # from gantry.caddy_manager import get_caddy_path
-        # get_caddy_path()
-
         # Check for conflicts first
         conflicts = process_manager.check_startup_conflicts(hostname)
         if conflicts and not force:
             console.print(f"[yellow]Port conflicts detected for '{hostname}':[/yellow]")
             for conflict in conflicts:
-                console.print(f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})")
-            console.print("[yellow]Use --force to start anyway (may cause issues).[/yellow]")
+                console.print(
+                    f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})"
+                )
+            console.print(
+                "[yellow]Use --force to start anyway (may cause issues).[/yellow]"
+            )
             raise typer.Exit(1)
         elif conflicts and force:
-            console.print(f"[yellow]Warning: Port conflicts detected, but proceeding with --force:[/yellow]")
+            console.print(
+                f"[yellow]Warning: Port conflicts detected, but proceeding with --force:[/yellow]"
+            )
             for conflict in conflicts:
-                console.print(f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})")
+                console.print(
+                    f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})"
+                )
 
         console.print(f"Starting project '{hostname}'...")
         process_manager.start_project(hostname, force=force)
         console.print(f"[green]✔ Project '{hostname}' started successfully![/green]")
         if project.port:
-            console.print(f"  - Access URL: http://localhost:{project.port}")
-            console.print(f"  - Domain: http://{hostname}.test (after DNS setup)")
+            console.print(f"  - Local URL: http://localhost:{project.port}")
+            console.print(f"  - Secure URL: https://{hostname}.test (if DNS & certs are set up)")
 
     except CaddyMissingError:
-        console.print("[red]Caddy is not installed. Please run 'gantry setup install-caddy' to install it.[/red]")
+        console.print(
+            "[red]Caddy is not installed. Please run 'gantry setup caddy' to install it.[/red]"
+        )
         raise typer.Exit(1)
     except ServiceAlreadyRunningError:
         console.print(f"[yellow]Project '{hostname}' is already running.[/yellow]")
@@ -233,7 +258,9 @@ def start(
     except PortConflictError as e:
         console.print(f"[red]Port conflicts detected:[/red]")
         for conflict in e.conflicts:
-            console.print(f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})")
+            console.print(
+                f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})"
+            )
         console.print("[yellow]Use --force to start anyway (may cause issues).[/yellow]")
         raise typer.Exit(1)
     except DockerComposeNotFoundError as e:
@@ -245,9 +272,7 @@ def start(
 
 
 @app.command()
-def stop(
-    hostname: str = typer.Argument(..., help="The hostname of the project to stop.")
-):
+def stop(hostname: str = typer.Argument(..., help="The hostname of the project to stop.")):
     """Stop a project."""
     project = registry.get_project(hostname)
     if not project:
@@ -308,9 +333,11 @@ def stop_all():
 
     console.print(f"Stopping {len(running_projects)} project(s)...")
     stopped = orchestrator.stop_all()
-    
+
     if stopped:
-        console.print(f"[green]✔ Successfully stopped {len(stopped)} project(s):[/green]")
+        console.print(
+            f"[green]✔ Successfully stopped {len(stopped)} project(s):[/green]"
+        )
         for hostname in stopped:
             console.print(f"  - {hostname}")
     else:
@@ -321,7 +348,9 @@ def stop_all():
 def logs(
     hostname: str = typer.Argument(..., help="The hostname of the project."),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output."),
-    service: Optional[str] = typer.Option(None, "--service", "-s", help="Filter logs by service name.")
+    service: Optional[str] = typer.Option(
+        None, "--service", "-s", help="Filter logs by service name."
+    ),
 ):
     """View logs for a project."""
     project = registry.get_project(hostname)
@@ -331,9 +360,13 @@ def logs(
 
     try:
         process = process_manager.get_logs(hostname, service=service, follow=follow)
-        
+
         if follow:
-            console.print(f"[green]Following logs for '{hostname}'" + (f" (service: {service})" if service else "") + "...[/green]")
+            console.print(
+                f"[green]Following logs for '{hostname}'"
+                + (f" (service: {service})" if service else "")
+                + "...[/green]"
+            )
             console.print("[dim]Press Ctrl+C to stop following logs.[/dim]\n")
             try:
                 for line in process.stdout:
@@ -365,13 +398,17 @@ def health_check(
         raise typer.Exit(1)
 
     if not project.port:
-        console.print(f"[yellow]Project '{hostname}' has no port configured for health checks.[/yellow]")
+        console.print(
+            f"[yellow]Project '{hostname}' has no port configured for health checks.[/yellow]"
+        )
         raise typer.Exit(0)
 
     try:
-        console.print(f"Checking health of '{hostname}' at http://localhost:{project.port}...")
+        console.print(
+            f"Checking health of '{hostname}' at http://localhost:{project.port}..."
+        )
         is_healthy = process_manager.health_check(hostname)
-        
+
         if is_healthy:
             console.print(f"[green]✔ Project '{hostname}' is healthy![/green]")
             raise typer.Exit(0)
@@ -386,8 +423,12 @@ def health_check(
 
 @app.command()
 def ports(
-    hostname: Optional[str] = typer.Argument(None, help="The hostname of the project. Omit for all projects."),
-    all_projects: bool = typer.Option(False, "--all", help="Show ports for all projects.")
+    hostname: Optional[str] = typer.Argument(
+        None, help="The hostname of the project. Omit for all projects."
+    ),
+    all_projects: bool = typer.Option(
+        False, "--all", help="Show ports for all projects."
+    ),
 ):
     """Show ports used by a project or all projects."""
     if all_projects or hostname is None:
@@ -413,11 +454,9 @@ def ports(
                         service_info.append(f"{proj_name}:http")
                     else:
                         service_info.append(proj_name)
-            
+
             table.add_row(
-                str(port),
-                ", ".join(projects),
-                ", ".join(service_info) if service_info else "-"
+                str(port), ", ".join(projects), ", ".join(service_info) if service_info else "-"
             )
         console.print(table)
     else:
@@ -428,7 +467,9 @@ def ports(
             raise typer.Exit(1)
 
         if not project.exposed_ports:
-            console.print(f"[yellow]Project '{hostname}' has no ports configured.[/yellow]")
+            console.print(
+                f"[yellow]Project '{hostname}' has no ports configured.[/yellow]"
+            )
             return
 
         table = Table("Port", "Service", "Type")
@@ -438,11 +479,14 @@ def ports(
                 port_type = "HTTP"
             else:
                 # Find service name for this port
-                service = next((s for s, p in project.service_ports.items() if p == port), "unknown")
+                service = next(
+                    (s for s, p in project.service_ports.items() if p == port),
+                    "unknown",
+                )
                 port_type = "Service"
-            
+
             table.add_row(str(port), service, port_type)
-        
+
         console.print(f"Ports for project '{hostname}':")
         console.print(table)
 
@@ -450,8 +494,12 @@ def ports(
 @app.command()
 def update(
     hostname: str = typer.Argument(..., help="The hostname of the project to update."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would change without applying."),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-apply all changes without confirmation.")
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would change without applying."
+    ),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Auto-apply all changes without confirmation."
+    ),
 ):
     """Re-scan a project and update its metadata."""
     project = registry.get_project(hostname)
@@ -471,7 +519,9 @@ def update(
     # Check if project is running
     is_running = process_manager.get_status(hostname) == "running"
     if is_running:
-        console.print(f"[yellow]Warning: Project '{hostname}' is currently running. Changes may require a restart.[/yellow]")
+        console.print(
+            f"[yellow]Warning: Project '{hostname}' is currently running. Changes may require a restart.[/yellow]"
+        )
 
     # Generate diff/changelog
     has_changes = bool(changes)
@@ -481,18 +531,22 @@ def update(
 
     # Display changes
     console.print("\n[bold]Detected Changes:[/bold]")
-    
+
     if changes.get("services_added"):
-        console.print(f"[green]Services added:[/green] {', '.join(changes['services_added'])}")
+        console.print(
+            f"[green]Services added:[/green] {', '.join(changes['services_added'])}"
+        )
     if changes.get("services_removed"):
-        console.print(f"[red]Services removed:[/red] {', '.join(changes['services_removed'])}")
+        console.print(
+            f"[red]Services removed:[/red] {', '.join(changes['services_removed'])}"
+        )
     if changes.get("ports_added"):
-        port_list = [f"{s}:{p}" for s, p in changes['ports_added'].items()]
+        port_list = [f"{s}:{p}" for s, p in changes["ports_added"].items()]
         console.print(f"[green]Ports added:[/green] {', '.join(port_list)}")
     if changes.get("ports_removed"):
         console.print(f"[red]Ports removed:[/red] {', '.join(changes['ports_removed'])}")
     if changes.get("ports_changed"):
-        port_list = [f"{s}:{changes['ports_changed'][s]}" for s in changes['ports_changed']]
+        port_list = [f"{s}:{changes['ports_changed'][s]}" for s in changes["ports_changed"]]
         console.print(f"[yellow]Ports changed:[/yellow] {', '.join(port_list)}")
     if changes.get("docker_compose_removed"):
         console.print("[red]Docker Compose file removed.[/red]")
@@ -504,20 +558,26 @@ def update(
         compose_file = project.path / "docker-compose.yml"
     elif (project.path / "docker-compose.yaml").exists():
         compose_file = project.path / "docker-compose.yaml"
-    
+
     if compose_file:
         new_service_ports = detect_service_ports(compose_file)
         # Calculate new exposed ports (HTTP port + all service ports)
         new_exposed_ports = [project.port] if project.port else []
         new_exposed_ports.extend(new_service_ports.values())
-        
+
         conflicts = port_allocator.check_port_conflicts(hostname, new_exposed_ports)
         if conflicts:
-            console.print("\n[yellow]Port conflicts detected with running projects:[/yellow]")
+            console.print(
+                "\n[yellow]Port conflicts detected with running projects:[/yellow]"
+            )
             for conflict in conflicts:
-                console.print(f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})")
+                console.print(
+                    f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})"
+                )
             if not yes and not dry_run:
-                console.print("[yellow]You may need to stop conflicting projects before applying updates.[/yellow]")
+                console.print(
+                    "[yellow]You may need to stop conflicting projects before applying updates.[/yellow]"
+                )
 
     # Dry run mode
     if dry_run:
@@ -533,7 +593,7 @@ def update(
     # Apply updates
     try:
         console.print("\nApplying updates...")
-        
+
         # Get updated service and port information
         # Find docker-compose file
         compose_file = None
@@ -541,7 +601,7 @@ def update(
             compose_file = project.path / "docker-compose.yml"
         elif (project.path / "docker-compose.yaml").exists():
             compose_file = project.path / "docker-compose.yaml"
-        
+
         if compose_file:
             updated_services = detect_services(compose_file)
             updated_service_ports = detect_service_ports(compose_file)
@@ -563,13 +623,11 @@ def update(
             services=updated_services,
             service_ports=updated_service_ports,
             exposed_ports=updated_exposed_ports,
-docker_compose=docker_compose
+            docker_compose=docker_compose,
         )
 
-        # Update Caddy routing if configured (Phase 4)
+        # Update Caddy routing if configured
         try:
-            from gantry.caddy_manager import CaddyManager
-            
             # Check if Caddy is configured by trying to generate/reload
             caddy_manager = CaddyManager(registry)
             # Regenerate Caddyfile with updated project information
@@ -581,8 +639,8 @@ docker_compose=docker_compose
             except Exception as e:
                 # Caddy might not be running, that's okay
                 console.print(f"[dim]Note: Caddy reload skipped ({e}).[/dim]")
-        except ImportError:
-            # Caddy manager not implemented yet (Phase 4), skip silently
+        except (ImportError, CaddyMissingError):
+            # Caddy manager not implemented yet or binary missing, skip silently
             pass
         except Exception as e:
             # If Caddy is configured but update fails, warn but don't fail the update
@@ -590,7 +648,9 @@ docker_compose=docker_compose
 
         console.print(f"[green]✔ Project '{hostname}' updated successfully![/green]")
         if is_running:
-            console.print("[yellow]Note: Project is running. You may want to restart it to apply changes.[/yellow]")
+            console.print(
+                "[yellow]Note: Project is running. You may want to restart it to apply changes.[/yellow]"
+            )
 
     except ValueError as e:
         console.print(f"[red]Error updating project: {e}[/red]")
@@ -602,8 +662,8 @@ setup_app = typer.Typer(help="Perform one-time setup for Gantry dependencies.")
 app.add_typer(setup_app, name="setup")
 
 
-@setup_app.command("install-caddy")
-def install_caddy_command():
+@setup_app.command("caddy")
+def setup_caddy_command():
     """Download and install the Caddy binary."""
     console.print("Installing Caddy...")
     try:
@@ -613,16 +673,50 @@ def install_caddy_command():
         raise typer.Exit(1)
 
 
+@setup_app.command("mkcert")
+def setup_mkcert_command():
+    """Download and install the mkcert binary."""
+    console.print("Installing mkcert...")
+    try:
+        cert_manager.install_mkcert()
+    except Exception as e:
+        console.print(f"[red]Error installing mkcert: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@setup_app.command("all")
+def setup_all_command():
+    """Run all setup steps: install Caddy, mkcert, and configure DNS."""
+    console.print("[bold]Running all setup steps...[/bold]")
+    try:
+        console.print("\n--- Step 1: Installing Caddy ---")
+        install_caddy()
+        console.print("\n--- Step 2: Installing mkcert ---")
+        cert_manager.install_mkcert()
+        console.print("\n--- Step 3: Setting up local CA ---")
+        cert_manager.setup_ca()
+        console.print("\n--- Step 4: Configuring DNS ---")
+        dns_setup()
+        console.print("\n[bold green]✅ All setup steps completed successfully![/bold green]")
+    except Exception as e:
+        console.print(f"\n[bold red]An error occurred during setup: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
 # --- Caddy Commands ---
 caddy_app = typer.Typer(help="Manage the Caddy reverse proxy.")
 app.add_typer(caddy_app, name="caddy")
+
 
 def _get_caddy_manager():
     try:
         return CaddyManager(registry)
     except CaddyMissingError:
-        console.print("[red]Caddy is not installed. Please run 'gantry setup install-caddy' to install it.[/red]")
+        console.print(
+            "[red]Caddy is not installed. Please run 'gantry setup caddy' to install it.[/red]"
+        )
         raise typer.Exit(1)
+
 
 @caddy_app.command("start")
 def caddy_start():
@@ -634,8 +728,11 @@ def caddy_start():
         console.print("[green]✔ Caddy server started successfully.[/green]")
     except CaddyCommandError as e:
         console.print(f"[red]Error starting Caddy: {e}[/red]")
-        console.print("[yellow]It might already be running, or there might be a port conflict (80, 443).[/yellow]")
+        console.print(
+            "[yellow]It might already be running, or there might be a port conflict (80, 443).[/yellow]"
+        )
         raise typer.Exit(1)
+
 
 @caddy_app.command("stop")
 def caddy_stop():
@@ -650,6 +747,7 @@ def caddy_stop():
         console.print("[yellow]It might already be stopped.[/yellow]")
         raise typer.Exit(1)
 
+
 @caddy_app.command("reload")
 def caddy_reload():
     """Generate a new Caddyfile and reload the Caddy server."""
@@ -663,6 +761,7 @@ def caddy_reload():
         console.print("[yellow]Is the Caddy server running?[/yellow]")
         raise typer.Exit(1)
 
+
 @caddy_app.command("generate-config")
 def caddy_generate_config():
     """Generate the Caddyfile and print it to the console."""
@@ -670,6 +769,30 @@ def caddy_generate_config():
     console.print("[bold]Generated Caddyfile:[/bold]")
     caddyfile = caddy_manager.generate_caddyfile()
     console.print(caddyfile)
+
+
+# --- Certificate Commands ---
+cert_app = typer.Typer(help="Manage TLS certificates with mkcert.")
+app.add_typer(cert_app, name="cert")
+
+
+@cert_app.command("setup-ca")
+def cert_setup_ca():
+    """Install a local Certificate Authority (CA) in your trust stores."""
+    cert_manager.setup_ca()
+
+
+@cert_app.command("generate")
+def cert_generate(
+    domains: List[str] = typer.Argument(
+        ..., help="A list of domains to include in the certificate."
+    )
+):
+    """Generate a TLS certificate for the given domains."""
+    if not domains:
+        console.print("[red]Error: At least one domain is required.[/red]")
+        raise typer.Exit(1)
+    cert_manager.generate_cert(domains)
 
 
 # --- DNS Commands ---
@@ -694,7 +817,9 @@ def dns_setup():
 
     # Check if we need sudo
     if not os.access(DNSMASQ_CONFIG_DIR, os.W_OK):
-        console.print("[yellow]Sudo privileges are required to write DNS configuration.[/yellow]")
+        console.print(
+            "[yellow]Sudo privileges are required to write DNS configuration.[/yellow]"
+        )
         if not typer.confirm("Do you want to proceed?", default=True):
             console.print("DNS setup cancelled.")
             raise typer.Exit(0)
@@ -714,29 +839,39 @@ def dns_status():
     """Show the current DNS configuration status."""
     try:
         status = dns_manager.get_dns_status()
-        
+
         table = Table("DNS Feature", "Status")
-        
-        backend_status = f"[green]{status['backend']}[/green]" if status['backend'] else "[red]Not Found[/red]"
+
+        backend_status = (
+            f"[green]{status['backend']}[/green]"
+            if status["backend"]
+            else "[red]Not Found[/red]"
+        )
         table.add_row("DNS Backend (dnsmasq)", backend_status)
-        
-        config_status = "[green]Configured[/green]" if status['dns_configured'] else "[red]Not Configured[/red]"
+
+        config_status = (
+            "[green]Configured[/green]"
+            if status["dns_configured"]
+            else "[red]Not Configured[/red]"
+        )
         table.add_row("Gantry DNS Config", config_status)
-        
-        if status['config_exists']:
-            table.add_row("Config File Path", str(status['config_file']))
-        
+
+        if status["config_exists"]:
+            table.add_row("Config File Path", str(status["config_file"]))
+
         console.print(table)
 
     except DNSBackendNotFoundError:
         console.print("[yellow]dnsmasq is not installed. DNS features are disabled.[/yellow]")
     except Exception as e:
         console.print(f"[red]An unexpected error occurred: {e}[/red]")
-        
+
 
 @dns_app.command("test")
 def dns_test(
-    hostname: str = typer.Argument("example", help="The hostname to test (e.g., 'my-app').")
+    hostname: str = typer.Argument(
+        "example", help="The hostname to test (e.g., 'my-app')."
+    )
 ):
     """Test DNS resolution for a given hostname."""
     test_domain = f"{hostname}.test"
@@ -744,17 +879,21 @@ def dns_test(
 
     try:
         if dns_manager.test_dns(hostname):
-            console.print(f"[green]✔ Success![/green] '{test_domain}' resolves to 127.0.0.1.")
+            console.print(
+                f"[green]✔ Success![/green] '{test_domain}' resolves to 127.0.0.1."
+            )
         else:
             # This case should be caught by the exception but is here for safety
             console.print(f"[red]✗ Failure.[/red] Unexpected result for '{test_domain}'.")
             raise typer.Exit(1)
-            
+
     except DNSTestError as e:
         console.print(f"[red]✗ DNS resolution failed: {e}[/red]")
         console.print("\n[bold]Troubleshooting steps:[/bold]")
         console.print("1. Ensure you have run [bold]gantry dns-setup[/bold].")
-        console.print("2. Check your system's DNS settings to ensure '127.0.0.1' is listed as a resolver.")
+        console.print(
+            "2. Check your system's DNS settings to ensure '127.0.0.1' is listed as a resolver."
+        )
         console.print("3. Restart your browser or system.")
         raise typer.Exit(1)
 

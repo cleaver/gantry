@@ -681,28 +681,32 @@ adminer.proj2.test {
   - [x] Error handling (port 80/443 already in use)
 
 #### 4.3
-- [ ] Implement `cert_manager.py`:
-  - [ ] Detect/install mkcert
-  - [ ] `setup_ca()` to create local CA
-  - [ ] `generate_cert()` for wildcard domains
-  - [ ] System CA trust verification
-  - [ ] Handle cert regeneration
+- [x] Implement `cert_manager.py`:
+  - [x] Detect/install mkcert
+  - [x] `setup_ca()` to create local CA
+  - [x] `generate_cert()` for wildcard domains
+  - [x] System CA trust verification
+  - [x] Handle cert regeneration
+  - [x] Smart dependency checking for `certutil`:
+    - [x] Detect distro (`/etc/os-release`).
+    - [x] Provide correct package name (`nss`, `nss-tools`, etc.) in a warning if `certutil` is missing.
 
 #### 4.4
-- [ ] Implement `routing_config.py`:
-  - [ ] Parse docker-compose.yml for services
-  - [ ] Auto-detect Adminer for database services
-  - [ ] Auto-detect MailHog for SMTP
-  - [ ] Map ports from registry
+- [x] Implement `routing_config.py`:
+  - [x] Parse docker-compose.yml for services
+  - [x] Auto-detect Adminer for database services
+  - [x] Auto-detect MailHog for SMTP
+  - [x] Map ports from registry
 
 #### 4.5
 - [ ] Extend `cli.py`:
-  - [ ] `caddy-setup` command (one-time installation)
-  - [ ] `caddy-start` command
-  - [ ] `caddy-stop` command
-  - [ ] `caddy-reload` command
+  - [x] `setup` command with `caddy` and `mkcert` subcommands.
+  - [x] `caddy start` command
+  - [x] `caddy stop` command
+  - [x] `caddy reload` command
   - [ ] `routes` command (show all routing rules)
-  - [ ] `cert-setup` command (generate certs)
+  - [x] `cert setup-ca` command (generate certs)
+  - [x] `cert generate` command
   - [ ] `cert-status` command
 
 #### 4.6
