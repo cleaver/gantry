@@ -710,10 +710,10 @@ adminer.proj2.test {
   - [x] `cert-status` command
 
 #### 4.6
-- [ ] Extend `registry.py`:
-  - [ ] Add `services` field with port mappings
-  - [ ] Add `caddy_configured` boolean
-  - [ ] Add `cert_installed` boolean
+- [x] Extend `registry.py`:
+  - [x] Add `services` field with port mappings
+  - [x] Add `caddy_configured` boolean
+  - [x] Add `cert_installed` boolean
 
 #### 4.7
 - [ ] Integration in `register` command:

@@ -26,6 +26,8 @@ class Project(BaseModel):
     status: Literal["running", "stopped", "error"] = "stopped"
     last_status_change: Optional[datetime] = None
     dns_registered: bool = False
+    caddy_configured: bool = False
+    cert_installed: bool = False
 
 
 class RegistryData(BaseModel):
