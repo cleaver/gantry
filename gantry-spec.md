@@ -704,10 +704,10 @@ adminer.proj2.test {
   - [x] `caddy start` command
   - [x] `caddy stop` command
   - [x] `caddy reload` command
-  - [ ] `routes` command (show all routing rules)
+  - [x] `routes` command (show all routing rules)
   - [x] `cert setup-ca` command (generate certs)
   - [x] `cert generate` command
-  - [ ] `cert-status` command
+  - [x] `cert-status` command
 
 #### 4.6
 - [ ] Extend `registry.py`:

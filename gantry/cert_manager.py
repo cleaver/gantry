@@ -246,3 +246,29 @@ class CertManager:
             console.print(f"[bold red]Error generating certificate:[/bold red]")
             console.print(e.stderr)
             return False
+
+    def get_ca_status(self) -> dict:
+        """
+        Checks the status of the mkcert local Certificate Authority.
+
+        Returns:
+            A dictionary with the installation status and the path to the CA file.
+        """
+        if not self._mkcert_path.exists():
+            return {"installed": False, "path": None}
+
+        try:
+            result = subprocess.run(
+                [str(self._mkcert_path), "-CAROOT"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            ca_root = Path(result.stdout.strip())
+            ca_path = ca_root / "rootCA.pem"
+            return {
+                "installed": ca_path.exists(),
+                "path": str(ca_path) if ca_path.exists() else None,
+            }
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return {"installed": False, "path": None}

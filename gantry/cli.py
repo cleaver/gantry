@@ -31,6 +31,7 @@ from gantry.process_manager import (
     ServiceNotRunningError,
 )
 from gantry.registry import Registry
+from gantry.routing_config import generate_routes_for_project
 
 app = typer.Typer(help="Gantry: A local development environment manager.")
 console = Console()
@@ -771,6 +772,24 @@ def caddy_generate_config():
     console.print(caddyfile)
 
 
+@caddy_app.command("routes")
+def caddy_routes():
+    """Show all routing rules."""
+    _get_caddy_manager()  # Ensures Caddy is installed
+    projects = registry.list_projects()
+    if not projects:
+        console.print("No projects registered to generate routes for.")
+        return
+
+    table = Table("Project", "Domain", "Proxy Target")
+    for project in sorted(projects, key=lambda p: p.hostname):
+        routes = generate_routes_for_project(project)
+        for i, route in enumerate(routes):
+            project_name = project.hostname if i == 0 else ""
+            table.add_row(project_name, route["domain"], f"localhost:{route['port']}")
+    console.print(table)
+
+
 # --- Certificate Commands ---
 cert_app = typer.Typer(help="Manage TLS certificates with mkcert.")
 app.add_typer(cert_app, name="cert")
@@ -793,6 +812,29 @@ def cert_generate(
         console.print("[red]Error: At least one domain is required.[/red]")
         raise typer.Exit(1)
     cert_manager.generate_cert(domains)
+
+
+@cert_app.command("status")
+def cert_status():
+    """Show the status of mkcert and the local CA."""
+    table = Table("Certificate Component", "Status", "Details")
+
+    # Check for binaries
+    deps = cert_manager.check_dependencies()
+    mkcert_status = "[green]Installed[/green]" if deps["mkcert"] else "[red]Not Found[/red]"
+    table.add_row("mkcert binary", mkcert_status)
+    certutil_status = "[green]Installed[/green]" if deps["certutil"] else "[red]Not Found[/red]"
+    table.add_row("certutil binary", certutil_status)
+
+    # Check for CA
+    ca_status = cert_manager.get_ca_status()
+    ca_installed_status = (
+        "[green]Installed[/green]" if ca_status["installed"] else "[red]Not Found[/red]"
+    )
+    ca_path = ca_status["path"] or "N/A"
+    table.add_row("Local CA", ca_installed_status, f"Path: {ca_path}")
+
+    console.print(table)
 
 
 # --- DNS Commands ---
