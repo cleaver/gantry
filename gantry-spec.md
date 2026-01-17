@@ -808,11 +808,11 @@ adminer.proj2.test {
   - [x] `tui/screens.py` (different screens/views)
 
 #### 5.3
-- [ ] Implement main screen:
-  - [ ] Project table with columns: Name, Status, Port, Actions
-  - [ ] Color-coded status indicators
-  - [ ] Selection/focus handling
-  - [ ] Real-time status updates
+- [x] Implement main screen:
+  - [x] Project table with columns: Name, Status, Port, Actions
+  - [x] Color-coded status indicators
+  - [x] Selection/focus handling
+  - [x] Real-time status updates
 
 #### 5.4
 - [ ] Implement log viewer:
