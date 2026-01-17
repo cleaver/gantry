@@ -832,9 +832,9 @@ adminer.proj2.test {
   - [x] Loading states
 
 #### 5.6
-- [ ] Extend `cli.py`:
-  - [ ] `tui` command to launch TUI console
-  - [ ] Alternative to web console
+- [x] Extend `cli.py`:
+  - [x] `tui` command to launch TUI console
+  - [x] Alternative to web console
 
 #### 5.7
 - [ ] Tests:

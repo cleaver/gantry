@@ -32,6 +32,7 @@ from gantry.process_manager import (
 )
 from gantry.registry import Registry
 from gantry.routing_config import generate_routes_for_project
+from gantry.tui.app import GantryApp
 
 app = typer.Typer(help="Gantry: A local development environment manager.")
 console = Console()
@@ -72,9 +73,7 @@ def register(
         readable=True,
         resolve_path=True,
     ),
-    yes: bool = typer.Option(
-        False, "--yes", "-y", help="Auto-confirm all prompts."
-    )
+    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-confirm all prompts."),
 ):
     """Register a new project with Gantry."""
     if not hostname:
@@ -86,7 +85,9 @@ def register(
     try:
         console.print(f"Registering project at '{path}' with hostname '{hostname}'...")
         http_port = port_allocator.allocate_port()
-        project = registry.register_project(hostname=hostname, path=path, port=http_port)
+        project = registry.register_project(
+            hostname=hostname, path=path, port=http_port
+        )
 
         exposed_ports = [http_port]
 
@@ -109,13 +110,15 @@ def register(
                 console.print("Detected the following service ports:")
                 console.print(table)
 
-                if yes or typer.confirm("Do you want to register these services?", default=True):
+                if yes or typer.confirm(
+                    "Do you want to register these services?", default=True
+                ):
                     exposed_ports.extend(service_ports.values())
                     registry.update_project_metadata(
                         hostname,
                         services=services,
                         service_ports=service_ports,
-                        docker_compose=True
+                        docker_compose=True,
                     )
                     console.print("[green]Services registered.[/green]")
                 else:
@@ -131,14 +134,20 @@ def register(
         try:
             # Ensure CA is set up
             if not cert_manager.get_ca_status().get("installed"):
-                console.print("Local Certificate Authority not found. Setting it up now...")
+                console.print(
+                    "Local Certificate Authority not found. Setting it up now..."
+                )
                 if not cert_manager.setup_ca():
-                     console.print("[yellow]Warning: Could not set up local CA. HTTPS URLs may not work.[/yellow]")
+                    console.print(
+                        "[yellow]Warning: Could not set up local CA. HTTPS URLs may not work.[/yellow]"
+                    )
 
             # Generate wildcard certificate
             console.print("Ensuring wildcard certificate for *.test exists...")
             if not cert_manager.generate_cert(["*.test", "localhost"]):
-                console.print("[yellow]Warning: Could not generate wildcard certificate.[/yellow]")
+                console.print(
+                    "[yellow]Warning: Could not generate wildcard certificate.[/yellow]"
+                )
             else:
                 registry.update_project_metadata(hostname, cert_installed=True)
 
@@ -152,12 +161,18 @@ def register(
                 caddy_manager.reload_caddy()
                 console.print("✔ Caddy configuration reloaded.")
             except CaddyCommandError:
-                console.print("[yellow]Caddy is not running. Run 'gantry caddy start' to enable reverse proxy.[/yellow]")
+                console.print(
+                    "[yellow]Caddy is not running. Run 'gantry caddy start' to enable reverse proxy.[/yellow]"
+                )
 
         except (CaddyMissingError, FileNotFoundError):
-            console.print("[yellow]Caddy or mkcert not found. Run 'gantry setup all' to install them.[/yellow]")
+            console.print(
+                "[yellow]Caddy or mkcert not found. Run 'gantry setup all' to install them.[/yellow]"
+            )
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not configure Caddy/TLS: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not configure Caddy/TLS: {e}[/yellow]"
+            )
 
         # --- DNS Integration ---
         try:
@@ -166,8 +181,12 @@ def register(
                 registry.update_project_metadata(hostname, dns_registered=True)
                 console.print(f"  - Access URL: https://{hostname}.test")
             else:
-                console.print(f"[yellow]DNS for .test domains is not configured.[/yellow]")
-                if yes or typer.confirm("Do you want to configure it now? (requires sudo)"):
+                console.print(
+                    f"[yellow]DNS for .test domains is not configured.[/yellow]"
+                )
+                if yes or typer.confirm(
+                    "Do you want to configure it now? (requires sudo)"
+                ):
                     dns_setup()
                     registry.update_project_metadata(hostname, dns_registered=True)
                     console.print(f"  - Access URL: https://{hostname}.test")
@@ -220,7 +239,7 @@ def list_projects():
 def unregister(
     hostname: str = typer.Argument(
         ..., help="The hostname of the project to unregister."
-    )
+    ),
 ):
     """Unregister a project."""
     project = registry.get_project(hostname)
@@ -263,7 +282,7 @@ def status():
 
 @app.command()
 def config(
-    hostname: str = typer.Argument(..., help="The hostname of the project to view.")
+    hostname: str = typer.Argument(..., help="The hostname of the project to view."),
 ):
     """View a project's configuration."""
     project = registry.get_project(hostname)
@@ -314,7 +333,9 @@ def start(
         console.print(f"[green]✔ Project '{hostname}' started successfully![/green]")
         if project.port:
             console.print(f"  - Local URL: http://localhost:{project.port}")
-            console.print(f"  - Secure URL: https://{hostname}.test (if DNS & certs are set up)")
+            console.print(
+                f"  - Secure URL: https://{hostname}.test (if DNS & certs are set up)"
+            )
 
     except CaddyMissingError:
         console.print(
@@ -330,7 +351,9 @@ def start(
             console.print(
                 f"  - Port {conflict['port']} is used by '{conflict['conflicting_project']}' ({conflict['service']})"
             )
-        console.print("[yellow]Use --force to start anyway (may cause issues).[/yellow]")
+        console.print(
+            "[yellow]Use --force to start anyway (may cause issues).[/yellow]"
+        )
         raise typer.Exit(1)
     except DockerComposeNotFoundError as e:
         console.print(f"[red]Error: {e}[/red]")
@@ -341,7 +364,9 @@ def start(
 
 
 @app.command()
-def stop(hostname: str = typer.Argument(..., help="The hostname of the project to stop.")):
+def stop(
+    hostname: str = typer.Argument(..., help="The hostname of the project to stop."),
+):
     """Stop a project."""
     project = registry.get_project(hostname)
     if not project:
@@ -369,7 +394,7 @@ def stop(hostname: str = typer.Argument(..., help="The hostname of the project t
 
 @app.command()
 def restart(
-    hostname: str = typer.Argument(..., help="The hostname of the project to restart.")
+    hostname: str = typer.Argument(..., help="The hostname of the project to restart."),
 ):
     """Restart a project."""
     project = registry.get_project(hostname)
@@ -458,7 +483,7 @@ def logs(
 
 @app.command(name="health-check")
 def health_check(
-    hostname: str = typer.Argument(..., help="The hostname of the project to check.")
+    hostname: str = typer.Argument(..., help="The hostname of the project to check."),
 ):
     """Perform a health check on a project."""
     project = registry.get_project(hostname)
@@ -525,7 +550,9 @@ def ports(
                         service_info.append(proj_name)
 
             table.add_row(
-                str(port), ", ".join(projects), ", ".join(service_info) if service_info else "-"
+                str(port),
+                ", ".join(projects),
+                ", ".join(service_info) if service_info else "-",
             )
         console.print(table)
     else:
@@ -613,9 +640,13 @@ def update(
         port_list = [f"{s}:{p}" for s, p in changes["ports_added"].items()]
         console.print(f"[green]Ports added:[/green] {', '.join(port_list)}")
     if changes.get("ports_removed"):
-        console.print(f"[red]Ports removed:[/red] {', '.join(changes['ports_removed'])}")
+        console.print(
+            f"[red]Ports removed:[/red] {', '.join(changes['ports_removed'])}"
+        )
     if changes.get("ports_changed"):
-        port_list = [f"{s}:{changes['ports_changed'][s]}" for s in changes["ports_changed"]]
+        port_list = [
+            f"{s}:{changes['ports_changed'][s]}" for s in changes["ports_changed"]
+        ]
         console.print(f"[yellow]Ports changed:[/yellow] {', '.join(port_list)}")
     if changes.get("docker_compose_removed"):
         console.print("[red]Docker Compose file removed.[/red]")
@@ -713,7 +744,9 @@ def update(
             pass
         except Exception as e:
             # If Caddy is configured but update fails, warn but don't fail the update
-            console.print(f"[yellow]Warning: Could not update Caddy routing: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not update Caddy routing: {e}[/yellow]"
+            )
 
         console.print(f"[green]✔ Project '{hostname}' updated successfully![/green]")
         if is_running:
@@ -766,7 +799,9 @@ def setup_all_command():
         cert_manager.setup_ca()
         console.print("\n--- Step 4: Configuring DNS ---")
         dns_setup()
-        console.print("\n[bold green]✅ All setup steps completed successfully![/bold green]")
+        console.print(
+            "\n[bold green]✅ All setup steps completed successfully![/bold green]"
+        )
     except Exception as e:
         console.print(f"\n[bold red]An error occurred during setup: {e}[/bold red]")
         raise typer.Exit(1)
@@ -873,7 +908,7 @@ def cert_setup_ca():
 def cert_generate(
     domains: List[str] = typer.Argument(
         ..., help="A list of domains to include in the certificate."
-    )
+    ),
 ):
     """Generate a TLS certificate for the given domains."""
     if not domains:
@@ -889,9 +924,13 @@ def cert_status():
 
     # Check for binaries
     deps = cert_manager.check_dependencies()
-    mkcert_status = "[green]Installed[/green]" if deps["mkcert"] else "[red]Not Found[/red]"
+    mkcert_status = (
+        "[green]Installed[/green]" if deps["mkcert"] else "[red]Not Found[/red]"
+    )
     table.add_row("mkcert binary", mkcert_status)
-    certutil_status = "[green]Installed[/green]" if deps["certutil"] else "[red]Not Found[/red]"
+    certutil_status = (
+        "[green]Installed[/green]" if deps["certutil"] else "[red]Not Found[/red]"
+    )
     table.add_row("certutil binary", certutil_status)
 
     # Check for CA
@@ -938,7 +977,9 @@ def dns_setup():
         dns_manager.setup_dns()
         console.print("[green]✔ DNS configured successfully![/green]")
         console.print("  - All *.test domains will now resolve to 127.0.0.1.")
-        console.print("You may need to restart your browser for changes to take effect.")
+        console.print(
+            "You may need to restart your browser for changes to take effect."
+        )
     except (DNSBackendNotFoundError, DNSConfigError) as e:
         console.print(f"[red]Error setting up DNS: {e}[/red]")
         raise typer.Exit(1)
@@ -972,7 +1013,9 @@ def dns_status():
         console.print(table)
 
     except DNSBackendNotFoundError:
-        console.print("[yellow]dnsmasq is not installed. DNS features are disabled.[/yellow]")
+        console.print(
+            "[yellow]dnsmasq is not installed. DNS features are disabled.[/yellow]"
+        )
     except Exception as e:
         console.print(f"[red]An unexpected error occurred: {e}[/red]")
 
@@ -981,7 +1024,7 @@ def dns_status():
 def dns_test(
     hostname: str = typer.Argument(
         "example", help="The hostname to test (e.g., 'my-app')."
-    )
+    ),
 ):
     """Test DNS resolution for a given hostname."""
     test_domain = f"{hostname}.test"
@@ -994,7 +1037,9 @@ def dns_test(
             )
         else:
             # This case should be caught by the exception but is here for safety
-            console.print(f"[red]✗ Failure.[/red] Unexpected result for '{test_domain}'.")
+            console.print(
+                f"[red]✗ Failure.[/red] Unexpected result for '{test_domain}'."
+            )
             raise typer.Exit(1)
 
     except DNSTestError as e:
@@ -1006,6 +1051,15 @@ def dns_test(
         )
         console.print("3. Restart your browser or system.")
         raise typer.Exit(1)
+
+
+@app.command()
+def tui():
+    """Launch the Gantry TUI console."""
+
+    app = GantryApp()
+
+    app.run()
 
 
 if __name__ == "__main__":
