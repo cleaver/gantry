@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  # The Test Runner: This is where pytest executes
+  test_runner:
+    build:
+      context: ../../
+      dockerfile: tests/integration/Dockerfile
+    tty: true
+    stdin_open: true
+    volumes:
+      - ../../:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Talk to host docker
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - GANTRY_INTEGRATION_TEST=1
+    privileged: true # Required for system-level networking and sudo tests
+    depends_on:
+      - docker_daemon
+
+  # Dedicated Docker Daemon for isolation (Optional, but safer for CI)
+  docker_daemon:
+    image: docker:dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""

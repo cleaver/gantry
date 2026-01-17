@@ -28,3 +28,19 @@ Alternatively, you can activate the virtual environment directly:
 source .venv/bin/activate
 pytest -m "not slow"
 ```
+
+## Integration Tests
+
+To run integration tests:
+
+```
+docker compose -f tests/integration/docker-compose.yml run --rm test_runner pytest tests/integration
+```
+
+To run integration tests with options, append them to the end:
+
+```
+```
+```
+docker compose -f tests/integration/docker-compose.yml run --rm test_runner pytest tests/integration -k "test_name_or_keyword"
+```
