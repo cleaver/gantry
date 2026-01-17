@@ -184,8 +184,15 @@ address=/.test/127.0.0.1
 
     def _write_config_with_sudo(self, content: str) -> None:
         """Write configuration file using sudo."""
+        # Ensure the directory exists before writing (tee cannot create parent directories)
+        subprocess.run(
+            ["sudo", "mkdir", "-p", str(DNSMASQ_CONFIG_DIR)],
+            check=True,
+            capture_output=True,
+        )
+
         # Use tee to write with sudo
-        process = subprocess.run(
+        subprocess.run(
             ["sudo", "tee", str(GANTRY_DNS_CONFIG)],
             input=content,
             text=True,

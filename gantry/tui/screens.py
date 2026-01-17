@@ -1,5 +1,6 @@
 """Screen classes for different views in Gantry TUI."""
 
+import asyncio
 from time import sleep
 from typing import Any, Callable, TypedDict
 
@@ -146,9 +147,9 @@ class LogScreen(Screen):
             for line in log_generator:
                 if worker.is_cancelled:
                     return
-                self.call_from_thread(self.log_viewer.log_display.write, line)
+                self.app.call_from_thread(self.log_viewer.log_display.write, line)
         except Exception as e:
-            self.call_from_thread(
+            self.app.call_from_thread(
                 self.log_viewer.log_display.write, f"Error tailing logs: {e}"
             )
 
@@ -210,16 +211,16 @@ class MainScreen(Screen):
     def _execute_action(
         self, hostname: str, action: Callable[..., Any], *args: Any
     ) -> None:
-        def worker():
+        async def worker():
             if self.project_table:
                 self.project_table.disabled = True
             try:
                 action(hostname, *args)
-                sleep(0.5)
+                await asyncio.sleep(0.5)
             finally:
                 if self.project_table:
                     self.project_table.disabled = False
-                    self.call_from_thread(self.project_table.update_statuses)
+                    self.app.call_from_thread(self.project_table.update_statuses)
 
         self.run_worker(worker)
 

@@ -837,10 +837,10 @@ adminer.proj2.test {
   - [x] Alternative to web console
 
 #### 5.7
-- [ ] Tests:
-  - [ ] Mock Textual widgets
-  - [ ] Test key bindings
-  - [ ] Test status updates
+- [x] Tests:
+  - [x] Mock Textual widgets
+  - [x] Test key bindings
+  - [x] Test status updates
 
 #### 5.8
 - [ ] Documentation:

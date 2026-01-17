@@ -65,7 +65,12 @@ class ProjectTable(DataTable):
 
     def on_mount(self) -> None:
         """Set up table columns when widget is mounted."""
-        self.add_columns("Name", "Status", "Port", "Actions")
+        self.add_columns(
+            ("Name", "Name"),
+            ("Status", "Status"),
+            ("Port", "Port"),
+            ("Actions", "Actions"),
+        )
         self.cursor_type = "row"
         self.populate_table()
 
