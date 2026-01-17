@@ -173,8 +173,6 @@ Displays all project metadata including:
 
 ### Update Command
 
-> **Note**: The `update` command is currently under development. This section describes the planned functionality.
-
 Re-scan a project directory and update its metadata:
 
 ```bash
