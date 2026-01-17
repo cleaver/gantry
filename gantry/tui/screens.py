@@ -1,14 +1,90 @@
 """Screen classes for different views in Gantry TUI."""
 
-from textual.containers import Container, Header, Footer
+from time import sleep
+from typing import Any, Callable, TypedDict
+
+from textual.app import App, ComposeResult
+from textual.containers import Container, Grid, Horizontal
 from textual.screen import Screen
-from textual.widgets import Select
+from textual.widgets import Button, Footer, Header, Label, Select, Static
 from textual.worker import Worker, get_current_worker
 
 from gantry.process_manager import ProcessManager
 from gantry.registry import Project, Registry
 from gantry.orchestrator import Orchestrator
 from gantry.tui.widgets import LogViewer, ProjectTable
+from gantry.detectors import rescan_project
+
+
+class Changes(TypedDict, total=False):
+    services_added: list[str]
+    services_removed: list[str]
+    ports_changed: dict[str, dict[str, int]]
+    ports_added: dict[str, int]
+    ports_removed: dict[str, int]
+
+
+class ConfirmDialog(Screen[bool]):
+    """A modal dialog to ask for confirmation."""
+
+    def __init__(self, message: str, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.message = message
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label(self.message, id="question"),
+            Horizontal(
+                Button("Yes", variant="primary", id="yes"),
+                Button("No", variant="default", id="no"),
+            ),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "yes")
+
+
+class UpdateScreen(Screen[bool]):
+    """A screen to show project updates and ask for confirmation."""
+
+    def __init__(self, project: Project, changes: Changes, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.project = project
+        self.changes = changes
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        yield Label(f"Update '{self.project.hostname}'?")
+        yield Static(self._format_changes(), id="changes")
+        yield Horizontal(
+            Button("Apply", variant="success", id="apply"),
+            Button("Cancel", variant="error", id="cancel"),
+            id="update-buttons",
+        )
+        yield Footer()
+
+    def _format_changes(self) -> str:
+        """Format the changes into a readable string."""
+        if not self.changes:
+            return "No changes detected."
+
+        lines = []
+        if added := self.changes.get("services_added"):
+            lines.append(f"[green]Services Added: {', '.join(added)}[/green]")
+        if removed := self.changes.get("services_removed"):
+            lines.append(f"[red]Services Removed: {', '.join(removed)}[/red]")
+        if added_ports := self.changes.get("ports_added"):
+            lines.append(f"[green]Ports Added: {added_ports}[/green]")
+        if removed_ports := self.changes.get("ports_removed"):
+            lines.append(f"[red]Ports Removed: {removed_ports}[/red]")
+        if changed_ports := self.changes.get("ports_changed"):
+            lines.append(f"[yellow]Ports Changed: {changed_ports}[/yellow]")
+
+        return "\n".join(lines)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "apply")
 
 
 class LogScreen(Screen):
@@ -33,12 +109,9 @@ class LogScreen(Screen):
     def compose(self):
         """Compose the screen."""
         yield Header(show_clock=False)
-
-        # Create a list of services for the dropdown
         services = self.project.services or []
         service_options = [("All Services", "all")] + [(s, s) for s in services]
         self.service_selector = Select(service_options, value="all")
-
         yield Container(
             self.service_selector,
             self.log_viewer,
@@ -47,30 +120,24 @@ class LogScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
-        """Start tailing logs when the screen is mounted."""
         self.tail_logs("all")
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        """Handle service selection change."""
         self.tail_logs(str(event.value))
 
     def tail_logs(self, service: str | None) -> None:
-        """Start a worker to tail logs for the selected service."""
         if self._log_worker is not None:
             self._log_worker.cancel()
-
         self.log_viewer.log_display.clear()
         self.log_viewer.log_display.write(
             f"Tailing logs for '{self.project.hostname}'..."
         )
-
         service_name = service if service != "all" else None
         self._log_worker = self.run_worker(
             self._log_tail_worker(service_name), exclusive=True
         )
 
     async def _log_tail_worker(self, service: str | None) -> None:
-        """The worker coroutine to tail logs."""
         worker = get_current_worker()
         try:
             log_generator = self.process_manager.get_logs(
@@ -86,18 +153,19 @@ class LogScreen(Screen):
             )
 
     def action_close_screen(self) -> None:
-        """Close the log screen."""
         if self._log_worker is not None:
             self._log_worker.cancel()
         self.app.pop_screen()
 
 
 class MainScreen(Screen):
-    """Main screen displaying the project table."""
-
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("l", "logs", "Logs"),
+        ("r", "restart", "Restart"),
+        ("u", "update", "Update"),
+        ("enter", "toggle_start_stop", "Start/Stop"),
+        ("A", "stop_all", "Stop All"),
         ("?", "help", "Help"),
     ]
 
@@ -116,37 +184,99 @@ class MainScreen(Screen):
         self.project_table: ProjectTable | None = None
 
     def compose(self):
-        """Create child widgets for the screen."""
         yield Header(show_clock=False)
         yield Container(
-            ProjectTable(
-                self.registry,
-                self.orchestrator,
-                id="project_table",
-            ),
+            ProjectTable(self.registry, self.orchestrator, id="project_table"),
             id="main_container",
         )
         yield Footer()
 
     def on_mount(self) -> None:
-        """Set up the screen when mounted."""
-        # Get reference to the project table
         self.project_table = self.query_one(ProjectTable)
-
-        # Set up periodic status updates (500ms interval as per spec)
         self.set_interval(0.5, self._update_statuses)
 
     def _update_statuses(self) -> None:
-        """Callback for periodic status updates."""
-        if self.project_table:
+        if self.project_table and not self.project_table.disabled:
             self.project_table.update_statuses()
 
+    def on_project_table_action(self, message: ProjectTable.Action) -> None:
+        if message.action == "start-stop":
+            self.action_toggle_start_stop(message.hostname)
+        elif message.action == "restart":
+            self.action_restart(message.hostname)
+        elif message.action == "update":
+            self.action_update(message.hostname)
+
+    def _execute_action(
+        self, hostname: str, action: Callable[..., Any], *args: Any
+    ) -> None:
+        def worker():
+            if self.project_table:
+                self.project_table.disabled = True
+            try:
+                action(hostname, *args)
+                sleep(0.5)
+            finally:
+                if self.project_table:
+                    self.project_table.disabled = False
+                    self.call_from_thread(self.project_table.update_statuses)
+
+        self.run_worker(worker)
+
+    def action_toggle_start_stop(self, hostname: str | None = None) -> None:
+        if not hostname:
+            project = self.project_table.get_selected_project_details()
+            if not project:
+                return
+            hostname = project.hostname
+        else:
+            project = self.registry.get_project(hostname)
+
+        if project:
+            action = (
+                self.orchestrator.stop_project
+                if project.status == "running"
+                else self.orchestrator.start_project
+            )
+            self._execute_action(hostname, action)
+
+    def action_restart(self, hostname: str | None = None) -> None:
+        if not hostname:
+            hostname = self.project_table.get_selected_project_hostname()
+        if hostname:
+            self._execute_action(hostname, self.orchestrator.restart_project)
+
+    def action_stop_all(self) -> None:
+        def on_confirm(do_stop: bool) -> None:
+            if do_stop:
+                self._execute_action("all", lambda *args: self.orchestrator.stop_all())
+
+        self.app.push_screen(ConfirmDialog("Stop all running projects?"), on_confirm)
+
+    def action_update(self, hostname: str | None = None) -> None:
+        if not hostname:
+            hostname = self.project_table.get_selected_project_hostname()
+        if not hostname:
+            return
+
+        project = self.registry.get_project(hostname)
+        if not project:
+            return
+
+        changes = rescan_project(project.path, project.model_dump(exclude_none=True))
+
+        def on_confirm(do_update: bool) -> None:
+            if do_update and changes:
+                self.registry.update_project_metadata(hostname, **changes)
+                if self.project_table:
+                    self.project_table.populate_table()
+
+        self.app.push_screen(UpdateScreen(project, changes), on_confirm)
+
     def action_quit(self) -> None:
-        """Handle quit action."""
         self.app.exit()
 
     def action_logs(self) -> None:
-        """Open the log viewer for the selected project."""
         if self.project_table:
             project = self.project_table.get_selected_project_details()
             if project:
@@ -155,5 +285,4 @@ class MainScreen(Screen):
                 )
 
     def action_help(self) -> None:
-        """Handle help action (placeholder for now)."""
         pass

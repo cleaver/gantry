@@ -2,8 +2,9 @@
 
 from typing import Optional
 
-from textual.containers import Container
+from textual.containers import Container, Horizontal
 from textual.widgets import Button, DataTable, RichLog
+from textual.message import Message
 
 from gantry.registry import Project, Registry
 from gantry.orchestrator import Orchestrator
@@ -42,6 +43,14 @@ class LogViewer(Container):
 class ProjectTable(DataTable):
     """Table widget displaying all registered projects."""
 
+    class Action(Message):
+        """Message to notify parent of an action."""
+
+        def __init__(self, hostname: str, action: str) -> None:
+            self.hostname = hostname
+            self.action = action
+            super().__init__()
+
     def __init__(
         self,
         registry: Registry,
@@ -63,60 +72,58 @@ class ProjectTable(DataTable):
     def populate_table(self) -> None:
         """Load projects from registry and populate the table."""
         projects = self.registry.list_projects()
-        # Clear existing rows
         self.clear()
         self._project_rows.clear()
-
-        # Sort projects by hostname
         sorted_projects = sorted(projects, key=lambda p: p.hostname)
 
         for project in sorted_projects:
-            row_key = self._add_project_row(project)
-            self._project_rows[row_key] = project.hostname
+            # Create buttons for actions. The row will be populated with a placeholder
+            # and then updated with the actual button widgets.
+            row_key = self.add_row(
+                project.hostname,
+                "...",
+                str(project.port) if project.port else "N/A",
+                "",
+                key=project.hostname,
+            )
+            self._project_rows[str(row_key)] = project.hostname
+            self.update_row(project.hostname, project)
 
-    def _add_project_row(self, project: Project) -> str:
-        """Add a single project row to the table."""
+    def update_row(self, hostname: str, project: Project) -> None:
+        """Update a row in the table with fresh project data."""
         status = project.status
         color = get_status_color(status)
         status_text = f"[{color}]{status.capitalize()}[/{color}]"
-        port_text = str(project.port) if project.port else "N/A"
-        actions_text = ""  # Placeholder for actions (will be implemented in 5.5)
 
-        row_key = self.add_row(
-            project.hostname,
-            status_text,
-            port_text,
-            actions_text,
-            key=project.hostname,
+        start_stop_label = "Stop" if status == "running" else "Start"
+        start_stop_variant = "error" if status == "running" else "success"
+
+        actions = Horizontal(
+            Button(
+                start_stop_label,
+                variant=start_stop_variant,
+                id=f"start-stop-{hostname}",
+            ),
+            Button("Restart", id=f"restart-{hostname}", disabled=status != "running"),
+            Button("Update", id=f"update-{hostname}"),
         )
-        return row_key
+        self.update_cell(hostname, "Status", status_text)
+        self.update_cell(hostname, "Actions", actions)
 
     def update_statuses(self) -> None:
         """Refresh project statuses and update the table."""
-        # Get fresh statuses from orchestrator (triggers live checks)
         statuses = self.orchestrator.get_all_status()
 
-        # Update status column for each project
-        for row_key, hostname in self._project_rows.items():
-            if hostname in statuses:
-                new_status = statuses[hostname]
-                color = get_status_color(new_status)
-                status_text = f"[{color}]{new_status.capitalize()}[/{color}]"
-
-                # Update the status cell
-                self.update_cell(row_key, "Status", status_text)
+        for hostname, new_status in statuses.items():
+            project = self.registry.get_project(hostname)
+            if project and project.status != new_status:
+                project.status = new_status
+                self.update_row(hostname, project)
 
     def get_selected_project_hostname(self) -> Optional[str]:
         """Get the hostname of the currently selected project."""
-        cursor_row = self.cursor_row
-        if cursor_row is not None:
-            try:
-                # Get hostname from the Name column (column 0)
-                cell_value = self.get_cell_at(cursor_row, 0)
-                if cell_value:
-                    return str(cell_value)
-            except (IndexError, KeyError):
-                pass
+        if self.cursor_row >= 0:
+            return self.get_row_at(self.cursor_row)[0]
         return None
 
     def get_selected_project_details(self) -> Optional[Project]:
@@ -125,3 +132,9 @@ class ProjectTable(DataTable):
         if hostname:
             return self.registry.get_project(hostname)
         return None
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses and emit an action message."""
+        if event.button.id:
+            action, hostname = event.button.id.split("-", 1)
+            self.post_message(self.Action(hostname, action))

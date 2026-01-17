@@ -822,14 +822,14 @@ adminer.proj2.test {
   - [x] Clear logs button
 
 #### 5.5
-- [ ] Implement action handlers:
-  - [ ] Start/Stop/Restart buttons
-  - [ ] Update button and `u` key binding
-  - [ ] Update dialog showing detected changes (diff view)
-  - [ ] Confirmation for applying updates
-  - [ ] Keyboard shortcuts
-  - [ ] Confirmation dialogs
-  - [ ] Loading states
+- [x] Implement action handlers:
+  - [x] Start/Stop/Restart buttons
+  - [x] Update button and `u` key binding
+  - [x] Update dialog showing detected changes (diff view)
+  - [x] Confirmation for applying updates
+  - [x] Keyboard shortcuts
+  - [x] Confirmation dialogs
+  - [x] Loading states
 
 #### 5.6
 - [ ] Extend `cli.py`:
