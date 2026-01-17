@@ -341,8 +341,9 @@ class TestDNSSetup:
         mock_which.return_value = "/usr/sbin/dnsmasq"
         mock_system.return_value = "Linux"
 
-        # Mock successful tee/chmod, but failed restart
+        # Mock successful mkdir/tee/chmod, but failed restart
         mock_subprocess.side_effect = [
+            MagicMock(returncode=0),  # mkdir
             MagicMock(returncode=0),  # tee
             MagicMock(returncode=0),  # chmod
             subprocess.CalledProcessError(
@@ -393,6 +394,7 @@ class TestDNSSetup:
 
         # Mock systemctl failure, service success
         mock_subprocess.side_effect = [
+            MagicMock(returncode=0),  # mkdir
             MagicMock(returncode=0),  # tee
             MagicMock(returncode=0),  # chmod
             subprocess.CalledProcessError(1, "sudo"),  # systemctl fails
