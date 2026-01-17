@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 # --- Data Models ---
 
+
 class Project(BaseModel):
     hostname: str
     path: Path
@@ -94,10 +95,10 @@ class Registry:
 
         data.projects[hostname] = project
         self._save_registry(data)
-        
+
         project_dir = GANTRY_HOME / "projects" / hostname
         project_dir.mkdir(exist_ok=True)
-        
+
         return project
 
     def get_project(self, hostname: str) -> Optional[Project]:
@@ -112,7 +113,7 @@ class Registry:
         data = self._load_registry()
         if hostname not in data.projects:
             raise ValueError(f"Project '{hostname}' not found.")
-        
+
         del data.projects[hostname]
         self._save_registry(data)
 
@@ -120,16 +121,21 @@ class Registry:
         if project_dir.is_dir():
             # Basic cleanup of per-project directory
             import shutil
+
             shutil.rmtree(project_dir)
 
-    def update_project_status(self, hostname: str, status: Literal["running", "stopped", "error"]):
+    def update_project_status(
+        self, hostname: str, status: Literal["running", "stopped", "error"]
+    ):
         self.update_project_metadata(hostname, status=status)
 
     def get_running_projects(self) -> List[Project]:
         data = self._load_registry()
         return [p for p in data.projects.values() if p.status == "running"]
 
-    def update_service_ports(self, hostname: str, service_ports: Dict[str, int], exposed_ports: List[int]):
+    def update_service_ports(
+        self, hostname: str, service_ports: Dict[str, int], exposed_ports: List[int]
+    ):
         self.update_project_metadata(
             hostname,
             service_ports=service_ports,
@@ -142,7 +148,7 @@ class Registry:
             raise ValueError(f"Project '{hostname}' not found.")
 
         project = data.projects[hostname]
-        
+
         # Create a dictionary from the existing model to apply updates
         updated_data = project.model_dump()
         updated_data.update(updates)

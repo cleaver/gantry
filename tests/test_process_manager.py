@@ -1,4 +1,5 @@
 """Tests for the ProcessManager."""
+
 import json
 import subprocess
 from datetime import datetime, timezone
@@ -39,9 +40,7 @@ def registered_project(mock_registry: Registry, sample_project_path: Path):
             "db": {"ports": ["5433:5432"]},
         }
     }
-    (sample_project_path / "docker-compose.yml").write_text(
-        json.dumps(compose_content)
-    )
+    (sample_project_path / "docker-compose.yml").write_text(json.dumps(compose_content))
 
     project = mock_registry.register_project(
         hostname="test-project",
@@ -61,6 +60,7 @@ def registered_project(mock_registry: Registry, sample_project_path: Path):
 # ============================================================================
 # Subprocess Mocking Tests
 # ============================================================================
+
 
 class TestSubprocessMocking:
     """Test subprocess call mocking for various scenarios."""
@@ -137,7 +137,9 @@ class TestSubprocessMocking:
         mock_registry: Registry,
     ):
         """Test docker compose up timeout raises ProcessManagerError."""
-        mock_subprocess_run.side_effect = subprocess.TimeoutExpired("docker compose", 120)
+        mock_subprocess_run.side_effect = subprocess.TimeoutExpired(
+            "docker compose", 120
+        )
 
         with pytest.raises(ProcessManagerError, match="Timeout starting"):
             process_manager.start_project("test-project")
@@ -198,7 +200,9 @@ class TestSubprocessMocking:
         mock_registry: Registry,
     ):
         """Test docker compose ps timeout returns error status."""
-        mock_subprocess_run.side_effect = subprocess.TimeoutExpired("docker compose", 10)
+        mock_subprocess_run.side_effect = subprocess.TimeoutExpired(
+            "docker compose", 10
+        )
 
         status = process_manager.get_status("test-project")
 
@@ -263,7 +267,9 @@ class TestSubprocessMocking:
         registered_project,
     ):
         """Test docker compose down timeout triggers force kill."""
-        mock_subprocess_run.side_effect = subprocess.TimeoutExpired("docker compose", 30)
+        mock_subprocess_run.side_effect = subprocess.TimeoutExpired(
+            "docker compose", 30
+        )
         mock_process = MagicMock()
         mock_process_class.return_value = mock_process
 
@@ -355,6 +361,7 @@ class TestSubprocessMocking:
 # ============================================================================
 # Start/Stop Lifecycle Tests
 # ============================================================================
+
 
 class TestStartProject:
     """Tests for the start_project method."""
@@ -533,8 +540,9 @@ class TestStartProject:
         """Test that start_project saves state with PIDs."""
         # Also patch GANTRY_HOME in process_manager module since it imports it
         import gantry.process_manager as pm_module
+
         monkeypatch.setattr(pm_module, "GANTRY_HOME", tmp_gantry_home)
-        
+
         mock_subprocess_run.return_value = MagicMock(returncode=0)
         mock_get_pids.return_value = [123, 456]
 
@@ -587,7 +595,10 @@ class TestStopProject:
         assert mock_registry.get_project("test-project").status == "stopped"
 
     def test_stop_project_already_stopped(
-        self, process_manager: ProcessManager, mock_registry: Registry, registered_project
+        self,
+        process_manager: ProcessManager,
+        mock_registry: Registry,
+        registered_project,
     ):
         """Test stopping an already stopped project does nothing."""
         mock_registry.update_project_status("test-project", "stopped")
@@ -651,6 +662,7 @@ class TestStopProject:
     ):
         """Test that stop_project handles psutil errors gracefully."""
         import psutil
+
         mock_subprocess_run.return_value = MagicMock(returncode=0)
         mock_pid_exists.return_value = True
         # Raise exception when creating Process (which is what the code catches)
@@ -831,6 +843,7 @@ class TestPidValidation:
     ):
         """Test _validate_pids handles psutil exceptions gracefully."""
         import psutil
+
         mock_process_class.side_effect = psutil.AccessDenied(123, "Access denied")
 
         valid_pids = process_manager._validate_pids([123])
@@ -842,6 +855,7 @@ class TestPidValidation:
 # Health Check Logic Tests
 # ============================================================================
 
+
 class TestHealthCheck:
     """Tests for the health_check method."""
 
@@ -849,7 +863,12 @@ class TestHealthCheck:
     @patch("gantry.process_manager._save_state")
     @patch("gantry.process_manager._load_state", return_value={})
     def test_health_check_success_200(
-        self, mock_load_state, mock_save_state, mock_urlopen, process_manager: ProcessManager, registered_project
+        self,
+        mock_load_state,
+        mock_save_state,
+        mock_urlopen,
+        process_manager: ProcessManager,
+        registered_project,
     ):
         """Test a successful health check with 200 status code."""
         mock_response = MagicMock()
@@ -870,7 +889,12 @@ class TestHealthCheck:
     @patch("gantry.process_manager._save_state")
     @patch("gantry.process_manager._load_state", return_value={})
     def test_health_check_success_299(
-        self, mock_load_state, mock_save_state, mock_urlopen, process_manager: ProcessManager, registered_project
+        self,
+        mock_load_state,
+        mock_save_state,
+        mock_urlopen,
+        process_manager: ProcessManager,
+        registered_project,
     ):
         """Test a successful health check with 299 status code."""
         mock_response = MagicMock()
@@ -926,6 +950,7 @@ class TestHealthCheck:
         """Test that health check retries on connection errors."""
         # First two attempts fail with exception, third succeeds
         from urllib.error import URLError
+
         mock_response_success = MagicMock()
         mock_response_success.getcode.return_value = 200
         mock_context = MagicMock()

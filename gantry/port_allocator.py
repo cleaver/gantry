@@ -9,6 +9,7 @@ from .registry import Project, Registry
 
 class PortConflictError(Exception):
     """Raised when a port conflict is detected."""
+
     def __init__(self, conflicts: List[Dict]):
         self.conflicts = conflicts
         super().__init__(f"Port conflict(s) detected: {conflicts}")
@@ -85,9 +86,9 @@ class PortAllocator:
 
             for port_mapping in ports:
                 # Check for long syntax first (dict with 'published' field)
-                if isinstance(port_mapping, dict) and 'published' in port_mapping:
-                    if str(port_mapping['published']).isdigit():
-                        host_port = int(port_mapping['published'])
+                if isinstance(port_mapping, dict) and "published" in port_mapping:
+                    if str(port_mapping["published"]).isdigit():
+                        host_port = int(port_mapping["published"])
                         # Take the first valid port mapping for the service
                         if service_name not in service_ports:
                             service_ports[service_name] = host_port
@@ -110,7 +111,9 @@ class PortAllocator:
         running_projects = self._registry.get_running_projects()
         return {p.hostname: p.exposed_ports for p in running_projects}
 
-    def check_port_conflicts(self, hostname: str, ports_to_check: List[int]) -> List[Conflict]:
+    def check_port_conflicts(
+        self, hostname: str, ports_to_check: List[int]
+    ) -> List[Conflict]:
         """
         Check if any of the given ports conflict with other running projects.
         """
@@ -124,18 +127,20 @@ class PortAllocator:
 
                 if port in other_ports:
                     project = self._registry.get_project(other_hostname)
-                    service_name = "http" # Default
+                    service_name = "http"  # Default
                     if project:
                         for s_name, s_port in project.service_ports.items():
                             if s_port == port:
                                 service_name = s_name
                                 break
 
-                    conflicts.append({
-                        "port": port,
-                        "conflicting_project": other_hostname,
-                        "service": service_name
-                    })
+                    conflicts.append(
+                        {
+                            "port": port,
+                            "conflicting_project": other_hostname,
+                            "service": service_name,
+                        }
+                    )
         return conflicts
 
     def validate_startup_ports(self, hostname: str):

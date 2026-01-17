@@ -12,14 +12,16 @@ class ProjectChanges(TypedDict, total=False):
     services_added: List[str]
     services_removed: List[str]
     ports_changed: Dict[str, int]  # service -> new_port
-    ports_added: Dict[str, int]    # service -> port
-    ports_removed: List[str]       # service name
+    ports_added: Dict[str, int]  # service -> port
+    ports_removed: List[str]  # service name
     docker_compose_removed: bool
 
 
 def detect_project_type(path: Path) -> ProjectType:
     """Detects the type of project based on the files present."""
-    if (path / "docker-compose.yml").exists() or (path / "docker-compose.yaml").exists():
+    if (path / "docker-compose.yml").exists() or (
+        path / "docker-compose.yaml"
+    ).exists():
         return "docker-compose"
     if (path / "Dockerfile").exists():
         return "dockerfile"
@@ -43,7 +45,11 @@ def detect_services(compose_file_path: Path) -> List[str]:
     with open(compose_file_path, "r", encoding="utf-8") as f:
         try:
             compose_data = yaml.safe_load(f)
-            if compose_data and "services" in compose_data and isinstance(compose_data["services"], dict):
+            if (
+                compose_data
+                and "services" in compose_data
+                and isinstance(compose_data["services"], dict)
+            ):
                 return list(compose_data["services"].keys())
         except yaml.YAMLError:
             return []
@@ -73,9 +79,9 @@ def detect_service_ports(compose_file_path: Path) -> Dict[str, int]:
 
         for port_mapping in service_config["ports"]:
             # Check for long syntax first (dict with 'published' field)
-            if isinstance(port_mapping, dict) and 'published' in port_mapping:
-                if str(port_mapping['published']).isdigit():
-                    host_port = int(port_mapping['published'])
+            if isinstance(port_mapping, dict) and "published" in port_mapping:
+                if str(port_mapping["published"]).isdigit():
+                    host_port = int(port_mapping["published"])
                     if service_name not in service_ports:
                         service_ports[service_name] = host_port
                         break  # Use the first port found for a service
@@ -119,9 +125,9 @@ def rescan_project(path: Path, existing_metadata: Project) -> ProjectChanges:
     existing_services = set(existing_metadata.services)
     new_services = set(detected_services)
 
-    if (services_added := sorted(list(new_services - existing_services))):
+    if services_added := sorted(list(new_services - existing_services)):
         changes["services_added"] = services_added
-    if (services_removed := sorted(list(existing_services - new_services))):
+    if services_removed := sorted(list(existing_services - new_services)):
         changes["services_removed"] = services_removed
 
     # --- Compare Ports ---
@@ -135,9 +141,10 @@ def rescan_project(path: Path, existing_metadata: Project) -> ProjectChanges:
     ports_removed = [s for s in existing_ports if s not in detected_ports]
     if ports_removed:
         changes["ports_removed"] = sorted(ports_removed)
-    
+
     ports_changed = {
-        s: p for s, p in detected_ports.items()
+        s: p
+        for s, p in detected_ports.items()
         if s in existing_ports and p != existing_ports[s]
     }
     if ports_changed:

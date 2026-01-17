@@ -110,14 +110,20 @@ class CertManager:
             The path to the mkcert executable.
         """
         if self._mkcert_path.exists() and self._mkcert_path == MKCERT_PATH:
-            console.print(f"✅ mkcert is already installed at [cyan]{self._mkcert_path}[/cyan]")
+            console.print(
+                f"✅ mkcert is already installed at [cyan]{self._mkcert_path}[/cyan]"
+            )
             return self._mkcert_path
 
         if shutil.which("mkcert"):
-             console.print(f"✅ mkcert is already installed on the system at [cyan]{shutil.which('mkcert')}[/cyan]")
-             return Path(shutil.which("mkcert"))
+            console.print(
+                f"✅ mkcert is already installed on the system at [cyan]{shutil.which('mkcert')}[/cyan]"
+            )
+            return Path(shutil.which("mkcert"))
 
-        console.print(f"mkcert not found. Downloading version [bold]{MKCERT_VERSION}[/bold]...")
+        console.print(
+            f"mkcert not found. Downloading version [bold]{MKCERT_VERSION}[/bold]..."
+        )
 
         arch = self._get_arch()
         version = MKCERT_VERSION
@@ -138,9 +144,13 @@ class CertManager:
                 TimeRemainingColumn(),
                 transient=True,
             ) as progress:
-                task_id = progress.add_task("download", filename=MKCERT_PATH.name, start=False)
+                task_id = progress.add_task(
+                    "download", filename=MKCERT_PATH.name, start=False
+                )
                 with urllib.request.urlopen(url) as response:
-                    progress.update(task_id, total=int(response.info().get("Content-Length", 0)))
+                    progress.update(
+                        task_id, total=int(response.info().get("Content-Length", 0))
+                    )
                     with open(MKCERT_PATH, "wb") as dest_file:
                         progress.start_task(task_id)
                         for data in iter(lambda: response.read(1024), b""):
@@ -178,7 +188,9 @@ class CertManager:
             True if the CA was installed successfully, False otherwise.
         """
         if not self._mkcert_path.exists():
-            console.print("[bold red]mkcert is not installed. Please run 'gantry setup' first.[/bold red]")
+            console.print(
+                "[bold red]mkcert is not installed. Please run 'gantry setup' first.[/bold red]"
+            )
             return False
 
         console.print("🔐 Setting up local Certificate Authority (CA)...")
@@ -195,7 +207,7 @@ class CertManager:
                 console.print(f"[bold red]Error installing local CA:[/bold red]")
                 console.print(result.stderr)
                 return False
-            
+
             console.print(result.stdout)
             console.print(result.stderr, style="dim")
             console.print("\n✅ Local CA installed successfully.")
@@ -215,19 +227,25 @@ class CertManager:
             True if the certificate was generated successfully, False otherwise.
         """
         if not self._mkcert_path.exists():
-            console.print("[bold red]mkcert is not installed. Please run 'gantry setup' first.[/bold red]")
+            console.print(
+                "[bold red]mkcert is not installed. Please run 'gantry setup' first.[/bold red]"
+            )
             return False
-        
+
         if not domains:
-            console.print("[bold red]No domains provided for certificate generation.[/bold red]")
+            console.print(
+                "[bold red]No domains provided for certificate generation.[/bold red]"
+            )
             return False
 
         CERTS_DIR.mkdir(parents=True, exist_ok=True)
-        cert_name = domains[0].replace('*.', 'wildcard.')
+        cert_name = domains[0].replace("*.", "wildcard.")
         cert_path = CERTS_DIR / f"{cert_name}.pem"
         key_path = CERTS_DIR / f"{cert_name}-key.pem"
 
-        console.print(f"Generating certificate for: [bold cyan]{', '.join(domains)}[/bold cyan]")
+        console.print(
+            f"Generating certificate for: [bold cyan]{', '.join(domains)}[/bold cyan]"
+        )
         command = [
             str(self._mkcert_path),
             "-cert-file",

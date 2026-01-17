@@ -1,4 +1,5 @@
 """Tests for the Orchestrator."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -51,6 +52,7 @@ def stopped_project(mock_registry, tmp_path):
 # ============================================================================
 # Lifecycle Tests
 # ============================================================================
+
 
 class TestStopAll:
     """Tests for the stop_all method."""
@@ -308,6 +310,7 @@ class TestGetAllStatus:
 # ============================================================================
 # Health Check Logic Tests
 # ============================================================================
+
 
 class TestWatchServices:
     """Tests for the watch_services method."""

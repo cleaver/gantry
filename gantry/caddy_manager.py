@@ -68,7 +68,11 @@ def check_caddy_installed() -> Path | None:
         The path to the Caddy binary if found, otherwise None.
     """
     # Check for the managed binary first
-    if CADDY_PATH.exists() and CADDY_PATH.is_file() and CADDY_PATH.stat().st_mode & 0o111:
+    if (
+        CADDY_PATH.exists()
+        and CADDY_PATH.is_file()
+        and CADDY_PATH.stat().st_mode & 0o111
+    ):
         return CADDY_PATH
 
     # Fallback to checking the system PATH
