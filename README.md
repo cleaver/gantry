@@ -435,7 +435,7 @@ Gantry stores project data in `~/.gantry/`:
 
 ## Development
 
-For detailed instructions on using `uv` for development, please see [UV_USAGE.md](UV_USAGE.md).
+For detailed instructions on using `uv` for development, please see [UV_USAGE.md](docs/UV_USAGE.md).
 
 ### Setup Development Environment
 
@@ -510,8 +510,8 @@ If the registry file becomes corrupted:
 
 ## Additional Documentation
 
-- **[DNS Setup Guide](DNS_SETUP.md)**: Complete guide to setting up `.test` domain resolution
-- **[Caddy Setup & Certificates](CADDY_SETUP.md)**: Comprehensive guide covering:
+- **[DNS Setup Guide](docs/DNS_SETUP.md)**: Complete guide to setting up `.test` domain resolution
+- **[Caddy Setup & Certificates](docs/CADDY_SETUP.md)**: Comprehensive guide covering:
   - Caddy reverse proxy setup
   - Self-signed certificate management with mkcert
   - Adding subservices (Adminer, MailHog)
