@@ -815,11 +815,11 @@ adminer.proj2.test {
   - [x] Real-time status updates
 
 #### 5.4
-- [ ] Implement log viewer:
-  - [ ] Scrollable log display
-  - [ ] Service selector
-  - [ ] Live-tail functionality
-  - [ ] Clear logs button
+- [x] Implement log viewer:
+  - [x] Scrollable log display
+  - [x] Service selector
+  - [x] Live-tail functionality
+  - [x] Clear logs button
 
 #### 5.5
 - [ ] Implement action handlers:

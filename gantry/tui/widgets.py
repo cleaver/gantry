@@ -2,7 +2,8 @@
 
 from typing import Optional
 
-from textual.widgets import DataTable
+from textual.containers import Container
+from textual.widgets import Button, DataTable, RichLog
 
 from gantry.registry import Project, Registry
 from gantry.orchestrator import Orchestrator
@@ -17,6 +18,25 @@ def get_status_color(status: str) -> str:
     elif status == "error":
         return "red"
     return "white"
+
+
+class LogViewer(Container):
+    """A widget to display logs and a clear button."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.log_display = RichLog(wrap=True, highlight=True, id="log_display")
+        self.clear_button = Button("Clear Logs", id="clear_logs")
+
+    def compose(self):
+        """Compose the widget."""
+        yield self.log_display
+        yield self.clear_button
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press."""
+        if event.button.id == "clear_logs":
+            self.log_display.clear()
 
 
 class ProjectTable(DataTable):
@@ -86,7 +106,7 @@ class ProjectTable(DataTable):
                 # Update the status cell
                 self.update_cell(row_key, "Status", status_text)
 
-    def get_selected_project(self) -> Optional[str]:
+    def get_selected_project_hostname(self) -> Optional[str]:
         """Get the hostname of the currently selected project."""
         cursor_row = self.cursor_row
         if cursor_row is not None:
@@ -97,4 +117,11 @@ class ProjectTable(DataTable):
                     return str(cell_value)
             except (IndexError, KeyError):
                 pass
+        return None
+
+    def get_selected_project_details(self) -> Optional[Project]:
+        """Get the full project object for the currently selected project."""
+        hostname = self.get_selected_project_hostname()
+        if hostname:
+            return self.registry.get_project(hostname)
         return None

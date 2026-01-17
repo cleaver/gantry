@@ -29,5 +29,6 @@ class GantryApp(App):
             MainScreen(
                 registry=self.registry,
                 orchestrator=self.orchestrator,
+                process_manager=self.process_manager,
             )
         )
