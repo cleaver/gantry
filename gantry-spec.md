@@ -799,13 +799,13 @@ adminer.proj2.test {
 ### Phase 5 Checklist
 
 #### 5.1
-- [ ] Add Textual to dependencies
+- [x] Add Textual to dependencies
 
 #### 5.2
-- [ ] Create TUI app structure:
-  - [ ] `tui/app.py` (main Textual application)
-  - [ ] `tui/widgets.py` (custom widgets)
-  - [ ] `tui/screens.py` (different screens/views)
+- [x] Create TUI app structure:
+  - [x] `tui/app.py` (main Textual application)
+  - [x] `tui/widgets.py` (custom widgets)
+  - [x] `tui/screens.py` (different screens/views)
 
 #### 5.3
 - [ ] Implement main screen:
